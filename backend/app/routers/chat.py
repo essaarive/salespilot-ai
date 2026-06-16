@@ -37,7 +37,7 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatRespo
         answer = "目前资料中没有相关信息"
     else:
         prompt = build_prompt(build_context(matched_knowledge), payload.question)
-        answer = await generate_answer(prompt)
+        answer = await generate_answer(prompt, db=db)
 
     conversation = Conversation(
         customer_name=payload.customer_name,

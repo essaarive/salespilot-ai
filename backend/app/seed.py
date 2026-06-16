@@ -1,5 +1,5 @@
 from app.database import SessionLocal, init_db
-from app.models import KnowledgeItem, User
+from app.models import AIModelConfig, KnowledgeItem, User
 
 
 SEED_KNOWLEDGE = [
@@ -47,6 +47,54 @@ SEED_KNOWLEDGE = [
     },
 ]
 
+SEED_AI_MODEL_CONFIGS = [
+    {
+        "provider": "deepseek",
+        "name": "DeepSeek 默认配置",
+        "api_key": "",
+        "base_url": "https://api.deepseek.com",
+        "model": "deepseek-chat",
+        "enabled": True,
+        "is_default": True,
+    },
+    {
+        "provider": "openai",
+        "name": "OpenAI 默认配置",
+        "api_key": "",
+        "base_url": "https://api.openai.com/v1",
+        "model": "gpt-4o-mini",
+        "enabled": True,
+        "is_default": False,
+    },
+    {
+        "provider": "qwen",
+        "name": "通义千问兼容模式",
+        "api_key": "",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "model": "qwen-plus",
+        "enabled": True,
+        "is_default": False,
+    },
+    {
+        "provider": "zhipu",
+        "name": "智谱 GLM 默认配置",
+        "api_key": "",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "model": "glm-4-flash",
+        "enabled": True,
+        "is_default": False,
+    },
+    {
+        "provider": "ollama",
+        "name": "Ollama 本地模型",
+        "api_key": "",
+        "base_url": "http://localhost:11434/v1",
+        "model": "qwen2.5:7b",
+        "enabled": True,
+        "is_default": False,
+    },
+]
+
 
 def seed() -> None:
     init_db()
@@ -59,6 +107,11 @@ def seed() -> None:
             exists = db.query(KnowledgeItem).filter(KnowledgeItem.title == payload["title"]).first()
             if not exists:
                 db.add(KnowledgeItem(**payload))
+
+        for payload in SEED_AI_MODEL_CONFIGS:
+            exists = db.query(AIModelConfig).filter(AIModelConfig.provider == payload["provider"]).first()
+            if not exists:
+                db.add(AIModelConfig(**payload))
 
         db.commit()
         print("Seed data initialized.")

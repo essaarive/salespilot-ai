@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
 from app.database import Base
 
@@ -62,5 +62,20 @@ class Setting(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(120), unique=True, index=True, nullable=False)
     value = Column(Text, default="", nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
+class AIModelConfig(Base):
+    __tablename__ = "ai_model_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    provider = Column(String(40), index=True, nullable=False)
+    name = Column(String(120), nullable=False)
+    api_key = Column(Text, default="", nullable=False)
+    base_url = Column(String(255), nullable=False)
+    model = Column(String(120), nullable=False)
+    enabled = Column(Boolean, default=True, nullable=False)
+    is_default = Column(Boolean, default=False, index=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

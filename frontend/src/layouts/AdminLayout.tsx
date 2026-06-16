@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   LogOut,
   MessageSquareText,
+  Settings,
   UsersRound,
 } from "lucide-react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -13,6 +14,7 @@ import { clearToken } from "../api/client";
 const navItems = [
   { path: "/dashboard", label: "仪表盘", icon: LayoutDashboard },
   { path: "/knowledge", label: "知识库管理", icon: Database },
+  { path: "/ai-settings", label: "模型设置", icon: Settings },
   { path: "/chat", label: "AI 对话测试", icon: Bot },
   { path: "/conversations", label: "对话记录", icon: MessageSquareText },
   { path: "/leads", label: "客户线索", icon: UsersRound },

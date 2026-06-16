@@ -1,5 +1,8 @@
 import type {
   ChatResponse,
+  AIModelConfig,
+  AIModelConfigPayload,
+  AIModelConfigTestResult,
   Conversation,
   DashboardSummary,
   KnowledgeItem,
@@ -91,4 +94,22 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   deleteLead: (id: number) => request<{ message: string }>(`/api/leads/${id}`, { method: "DELETE" }),
+  getAIConfigs: () => request<AIModelConfig[]>("/api/ai-settings/configs"),
+  getCurrentAIConfig: () => request<AIModelConfig>("/api/ai-settings/current"),
+  createAIConfig: (payload: AIModelConfigPayload) =>
+    request<AIModelConfig>("/api/ai-settings/configs", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateAIConfig: (id: number, payload: Partial<AIModelConfigPayload>) =>
+    request<AIModelConfig>(`/api/ai-settings/configs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  setDefaultAIConfig: (id: number) =>
+    request<AIModelConfig>(`/api/ai-settings/configs/${id}/set-default`, { method: "POST" }),
+  testAIConfig: (id: number) =>
+    request<AIModelConfigTestResult>(`/api/ai-settings/configs/${id}/test`, { method: "POST" }),
+  deleteAIConfig: (id: number) =>
+    request<{ message: string }>(`/api/ai-settings/configs/${id}`, { method: "DELETE" }),
 };

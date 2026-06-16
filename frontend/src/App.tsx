@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 
 import { getToken } from "./api/client";
 import AdminLayout from "./layouts/AdminLayout";
+import AISettings from "./pages/AISettings";
 import Chat from "./pages/Chat";
 import Conversations from "./pages/Conversations";
 import Dashboard from "./pages/Dashboard";
@@ -29,6 +30,7 @@ export default function App() {
         <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="knowledge" element={<Knowledge />} />
+        <Route path="ai-settings" element={<AISettings />} />
         <Route path="chat" element={<Chat />} />
         <Route path="conversations" element={<Conversations />} />
         <Route path="leads" element={<Leads />} />

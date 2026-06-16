@@ -26,7 +26,8 @@
 - 仪表盘：首页统计、最近咨询、高意向线索提醒、意向等级说明
 - 知识库管理：新增、编辑、删除、搜索、分类筛选、状态展示
 - 简化 RAG：根据客户问题匹配知识库标题、分类、关键词和内容
-- AI 对话测试：支持 DeepSeek API；无 API Key 时自动 mock 回复
+- AI 对话测试：支持后台选择当前大模型；无 API Key 或调用失败时自动 mock 回复
+- 模型设置：后台配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama 和自定义兼容 API
 - 意向识别：识别询价、合作、产品、交付、售后、无关问题
 - 线索沉淀：high 意向咨询自动创建客户线索
 - 对话记录：查看完整问答、筛选意向等级、删除记录
@@ -53,7 +54,8 @@
 
 AI：
 
-- DeepSeek API
+- DeepSeek / OpenAI / 通义千问 / 智谱 GLM / Ollama / Custom Provider
+- OpenAI-Compatible Chat Completions 调用格式
 - Mock AI fallback
 - 简化关键词 RAG，预留未来向量检索升级空间
 
@@ -81,7 +83,7 @@ FastAPI Backend
 SQLite
 ```
 
-后端将 AI 调用、知识库检索和意向识别拆分到 service 层，接口层只负责请求处理和数据落库，便于后续替换模型、升级向量检索或接入更多渠道。
+后端将 AI 调用、模型配置、知识库检索和意向识别拆分到 service 层，接口层只负责请求处理和数据落库，便于后续替换模型、升级向量检索或接入更多渠道。
 
 ## 项目结构
 
@@ -187,9 +189,25 @@ curl -I http://localhost:5173
 本地后端环境变量位于 `backend/.env`，Docker Compose 可使用根目录 `.env`。
 
 ```env
+AI_PROVIDER=deepseek
+AI_API_KEY=
+AI_BASE_URL=
+AI_MODEL=
 DEEPSEEK_API_KEY=
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 DEEPSEEK_MODEL=deepseek-chat
+OPENAI_API_KEY=
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+QWEN_API_KEY=
+QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-plus
+ZHIPU_API_KEY=
+ZHIPU_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+ZHIPU_MODEL=glm-4-flash
+OLLAMA_API_KEY=
+OLLAMA_BASE_URL=http://localhost:11434/v1
+OLLAMA_MODEL=qwen2.5:7b
 DATABASE_URL=sqlite:///./salespilot.db
 APP_TIMEZONE=Asia/Shanghai
 ```
@@ -201,6 +219,33 @@ DATABASE_URL=sqlite:////data/salespilot.db
 ```
 
 `DEEPSEEK_API_KEY` 为空时，后端会自动返回 mock 回复，方便本地完整演示。
+
+数据库中的后台默认模型配置优先于环境变量。环境变量保留为 fallback：当没有数据库默认配置、没有传入数据库会话或本地初始化尚未完成时，AI 服务会读取 `AI_PROVIDER`、`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 以及各 Provider 专用变量。
+
+## 后台多模型配置
+
+系统支持在后台「模型设置」页面配置多个模型 Provider：
+
+- DeepSeek
+- OpenAI
+- 通义千问
+- 智谱 GLM
+- Ollama
+- 自定义 OpenAI-Compatible API
+
+同一时间只有一个默认模型生效。AI 对话接口 `POST /api/chat` 会使用当前默认模型配置生成回复。
+
+如果当前默认模型未配置 API Key、配置错误、请求失败或响应格式异常，后端会自动使用 mock fallback，保证 Demo 流程仍可演示。Ollama 配置允许 API Key 为空。
+
+API Key 当前存储在 SQLite 中，这是 MVP 简化实现；接口返回给前端时只会返回是否已配置和脱敏预览，不会返回完整 API Key。真实生产环境建议加密存储 API Key，或接入 KMS、Vault、云厂商密钥管理服务。
+
+Docker 中访问宿主机 Ollama 时，`base_url` 可能需要配置为：
+
+```text
+http://host.docker.internal:11434/v1
+```
+
+也可以按实际 Docker 网络配置改为对应容器名或网关地址。
 
 ## 默认账号密码
 
@@ -231,6 +276,16 @@ DATABASE_URL=sqlite:////data/salespilot.db
 仪表盘：
 
 - `GET /api/dashboard/summary`
+
+模型设置：
+
+- `GET /api/ai-settings/configs`
+- `GET /api/ai-settings/current`
+- `POST /api/ai-settings/configs`
+- `PUT /api/ai-settings/configs/{id}`
+- `POST /api/ai-settings/configs/{id}/set-default`
+- `POST /api/ai-settings/configs/{id}/test`
+- `DELETE /api/ai-settings/configs/{id}`
 
 知识库：
 
@@ -286,10 +341,20 @@ docker compose up --build
 
 后端容器启动时会执行 `python -m app.seed`，种子数据脚本是幂等的，不会重复插入同名内置知识。
 
+本项目没有引入数据库迁移系统。新增表结构会通过 SQLAlchemy `create_all()` 创建；如旧数据库中缺少新表或默认模型配置，可执行：
+
+```bash
+cd backend
+source .venv/bin/activate
+python -m app.seed
+```
+
+如果本地演示数据可丢弃，也可以删除 SQLite 文件后重新 seed。
+
 ## 项目亮点
 
 - 完整 MVP 闭环：知识库、AI 回复、意向识别、对话记录、线索沉淀
-- AI 服务层独立封装：DeepSeek 和 mock fallback 不侵入路由层
+- AI 服务层独立封装：多模型配置、OpenAI-Compatible 调用和 mock fallback 不侵入路由层
 - 简化 RAG 结构清晰：第一版用关键词匹配，保留向量检索升级空间
 - 企业 SaaS 后台风格：左侧导航、仪表盘、表格、筛选、弹窗表单
 - 本地和 Docker 两种启动方式：适合作品集、面试和客户演示
@@ -301,6 +366,7 @@ docker compose up --build
 - 未实现 JWT、刷新 token、RBAC 权限和多用户管理
 - 密码哈希、审计日志、限流、防暴力破解等生产安全能力尚未加入
 - RAG 仍为关键词检索，没有向量数据库、Embedding 和重排
+- API Key 当前明文存储在 SQLite 中，仅适合 MVP 演示
 - SQLite 适合本地演示，不适合高并发生产场景
 - npm audit 中 Vite/esbuild 相关 high 警告尚未强制升级
 

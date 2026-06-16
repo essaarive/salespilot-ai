@@ -63,3 +63,37 @@ export interface ChatResponse {
   intent_level: IntentLevel;
   matched_knowledge: KnowledgeItem[];
 }
+
+export type AIProvider = "deepseek" | "openai" | "qwen" | "zhipu" | "ollama" | "custom";
+
+export interface AIModelConfig {
+  id: number;
+  provider: AIProvider;
+  name: string;
+  base_url: string;
+  model: string;
+  enabled: boolean;
+  is_default: boolean;
+  api_key_masked: boolean;
+  api_key_preview: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AIModelConfigPayload {
+  provider: AIProvider;
+  name: string;
+  base_url: string;
+  model: string;
+  api_key?: string;
+  clear_api_key?: boolean;
+  enabled: boolean;
+  is_default: boolean;
+}
+
+export interface AIModelConfigTestResult {
+  success: boolean;
+  message: string;
+  provider?: string;
+  model?: string;
+}

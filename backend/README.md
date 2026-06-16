@@ -24,6 +24,8 @@ cp .env.example .env
 
 如果不配置 `DEEPSEEK_API_KEY`，系统会自动使用 mock 回复，方便本地演示。
 
+AI 对话优先使用数据库中「模型设置」页面的默认配置。环境变量保留为 fallback，可配置 `AI_PROVIDER`、`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 或各 Provider 专用变量。
+
 ## 认证说明
 
 当前认证为演示版简化实现，默认账号为 `admin / admin123`，接口鉴权使用简单固定 token。该实现仅用于本地作品演示，不应直接用于生产环境。

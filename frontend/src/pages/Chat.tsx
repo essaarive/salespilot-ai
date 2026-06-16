@@ -84,7 +84,7 @@ export default function Chat() {
             </div>
           </div>
           <p className="rounded-md bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-700">
-            未配置 DeepSeek API Key 时会自动使用 mock 回复，方便本地演示完整流程。
+            如未配置当前模型 API Key，或大模型 API 调用失败，将自动使用 mock 回复，方便本地演示完整流程。
           </p>
           {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
           <button className="btn-primary w-full" type="submit" disabled={loading}>

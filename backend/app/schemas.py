@@ -7,6 +7,7 @@ IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sal
 IntentLevel = Literal["high", "medium", "low"]
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]
+AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "custom"]
 
 
 class LoginRequest(BaseModel):
@@ -118,3 +119,48 @@ class DashboardSummary(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class AIModelConfigBase(BaseModel):
+    provider: AIProvider
+    name: str
+    base_url: str
+    model: str
+    enabled: bool = True
+    is_default: bool = False
+
+
+class AIModelConfigCreate(AIModelConfigBase):
+    api_key: str = ""
+
+
+class AIModelConfigUpdate(BaseModel):
+    provider: Optional[AIProvider] = None
+    name: Optional[str] = None
+    api_key: Optional[str] = None
+    clear_api_key: bool = False
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+    enabled: Optional[bool] = None
+    is_default: Optional[bool] = None
+
+
+class AIModelConfigOut(AIModelConfigBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    api_key_masked: bool
+    api_key_preview: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class AIModelConfigCurrent(AIModelConfigOut):
+    pass
+
+
+class AIModelConfigTestResult(BaseModel):
+    success: bool
+    message: str
+    provider: Optional[str] = None
+    model: Optional[str] = None
