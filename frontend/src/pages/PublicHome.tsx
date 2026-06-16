@@ -156,7 +156,7 @@ export default function PublicHome() {
           </div>
         </section>
 
-        <section id="features" className="px-4 py-16 sm:px-6 lg:px-8">
+        <section id="features" className="scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="产品能力" title="从咨询到线索，AI 帮销售完成第一轮接待" />
           <div className="mx-auto grid max-w-7xl gap-5 md:grid-cols-2 xl:grid-cols-4">
             {features.map((item) => (
@@ -171,7 +171,7 @@ export default function PublicHome() {
           </div>
         </section>
 
-        <section id="workflow" className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+        <section id="workflow" className="scroll-mt-24 bg-white px-4 py-16 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="使用流程" title="4 步完成 AI 销售接待闭环" />
           <div className="mx-auto grid max-w-6xl gap-5 md:grid-cols-4">
             {workflow.map(([title, description], index) => (
@@ -186,7 +186,7 @@ export default function PublicHome() {
           </div>
         </section>
 
-        <section id="scenarios" className="px-4 py-16 sm:px-6 lg:px-8">
+        <section id="scenarios" className="scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="适用场景" title="适合这些需要销售接待的业务场景" />
           <div className="mx-auto grid max-w-7xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {scenarios.map(([title, description]) => (
@@ -198,17 +198,18 @@ export default function PublicHome() {
           </div>
         </section>
 
-        <section id="pricing" className="bg-white px-4 py-16 sm:px-6 lg:px-8">
+        <section id="pricing" className="scroll-mt-24 bg-white px-4 py-16 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="套餐方案" title="按业务复杂度选择合适方案" />
-          <div className="mx-auto grid max-w-7xl gap-5 lg:grid-cols-3">
+          <div className="mx-auto grid max-w-7xl items-stretch gap-5 lg:grid-cols-3">
             {plans.map((plan) => (
               <article
                 key={plan.name}
                 className={[
-                  "rounded-xl border bg-white p-6 shadow-sm",
-                  plan.highlight ? "border-brand-200 ring-2 ring-brand-100" : "border-slate-200",
+                  "flex h-full flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:shadow-md",
+                  plan.highlight ? "relative overflow-hidden" : "",
                 ].join(" ")}
               >
+                {plan.highlight && <div className="absolute inset-x-0 top-0 h-1 bg-brand-500" />}
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-950">{plan.name}</h3>
@@ -217,7 +218,7 @@ export default function PublicHome() {
                   {plan.highlight && <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-medium text-brand-700">推荐</span>}
                 </div>
                 <p className="mt-4 min-h-12 text-sm leading-6 text-slate-600">适合：{plan.fit}</p>
-                <ul className="mt-5 space-y-3">
+                <ul className="mt-5 flex-1 space-y-3">
                   {plan.points.map((point) => (
                     <li key={point} className="flex items-center gap-2 text-sm text-slate-700">
                       <CheckCircle2 size={16} className="text-emerald-600" />
@@ -231,7 +232,7 @@ export default function PublicHome() {
           </div>
         </section>
 
-        <section id="faq" className="px-4 py-16 sm:px-6 lg:px-8">
+        <section id="faq" className="scroll-mt-24 px-4 py-16 sm:px-6 lg:px-8">
           <SectionTitle eyebrow="常见问题" title="常见问题" />
           <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
             {faqs.map(([question, answer]) => (
