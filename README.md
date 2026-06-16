@@ -35,7 +35,7 @@
 - 知识库管理：新增、编辑、删除、搜索、分类筛选、状态展示
 - 简化 RAG：根据客户问题匹配知识库标题、分类、关键词和内容
 - AI 对话测试：支持后台选择当前大模型；无 API Key 或调用失败时自动 mock 回复
-- 模型设置：后台配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama 和自定义兼容 API
+- 模型设置：后台配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama、火山方舟和自定义兼容 API
 - 意向识别：识别询价、合作、产品、交付、售后、问候、无关问题
 - 线索沉淀：high 意向咨询自动创建客户线索
 - 对话记录：查看完整问答、筛选意向等级、删除记录
@@ -62,7 +62,7 @@
 
 AI：
 
-- DeepSeek / OpenAI / 通义千问 / 智谱 GLM / Ollama / Custom Provider
+- DeepSeek / OpenAI / 通义千问 / 智谱 GLM / Ollama / 火山方舟 / Custom Provider
 - OpenAI-Compatible Chat Completions 调用格式
 - Mock AI fallback
 - 简化关键词 RAG，预留未来向量检索升级空间
@@ -216,6 +216,9 @@ ZHIPU_MODEL=glm-4-flash
 OLLAMA_API_KEY=
 OLLAMA_BASE_URL=http://localhost:11434/v1
 OLLAMA_MODEL=qwen2.5:7b
+VOLCENGINE_ARK_API_KEY=
+VOLCENGINE_ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+VOLCENGINE_ARK_MODEL=
 DATABASE_URL=sqlite:///./salespilot.db
 APP_TIMEZONE=Asia/Shanghai
 ```
@@ -239,6 +242,7 @@ DATABASE_URL=sqlite:////data/salespilot.db
 - 通义千问
 - 智谱 GLM
 - Ollama
+- 火山方舟
 - 自定义 OpenAI-Compatible API
 
 同一时间只有一个默认模型生效。AI 对话接口 `POST /api/chat` 会使用当前默认模型配置生成回复。
@@ -246,6 +250,24 @@ DATABASE_URL=sqlite:////data/salespilot.db
 如果当前默认模型未配置 API Key、配置错误、请求失败或响应格式异常，后端会自动使用 mock fallback，保证 Demo 流程仍可演示。Ollama 配置允许 API Key 为空。
 
 API Key 当前存储在 SQLite 中，这是 MVP 简化实现；接口返回给前端时只会返回是否已配置和脱敏预览，不会返回完整 API Key。真实生产环境建议加密存储 API Key，或接入 KMS、Vault、云厂商密钥管理服务。
+
+## 火山方舟 DeepSeek 接入说明
+
+火山方舟 DeepSeek 推荐配置：
+
+- Provider：`火山方舟` 或 `Custom`
+- Base URL：`https://ark.cn-beijing.volces.com/api/v3`
+- Model：火山方舟接入点 ID，例如 `ep-xxxx`
+- API Key：火山方舟 API Key
+
+注意事项：
+
+- 不要使用 DeepSeek 官方 Base URL：`https://api.deepseek.com`
+- 不要把 Model 填成 `deepseek-chat`，除非火山方舟控制台明确要求
+- 不要把 Base URL 填成完整的 `/chat/completions`
+- API Key 不要带 `Bearer`、引号或空格；系统保存时会自动清理常见误输入
+- `401` 通常是 API Key 错误、权限不足、Key 与接入点不匹配或 Key 过期
+- `404` 通常是 Base URL 或 Model / 接入点 ID 错误
 
 Docker 中访问宿主机 Ollama 时，`base_url` 可能需要配置为：
 

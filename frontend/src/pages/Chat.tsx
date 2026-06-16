@@ -1,9 +1,9 @@
 import { Send } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 
 import { api } from "../api/client";
-import type { ChatResponse } from "../types";
-import { formatIntentLevel, formatIntentType } from "./helpers";
+import type { AIModelConfig, ChatResponse } from "../types";
+import { cleanAIText, formatIntentLevel, formatIntentType, formatScopeType } from "./helpers";
 
 const presetQuestions = [
   "你们做 AI 客服多少钱？",
@@ -13,13 +13,28 @@ const presetQuestions = [
   "适合哪些行业？",
 ];
 
+const providerLabels: Record<string, string> = {
+  deepseek: "DeepSeek",
+  openai: "OpenAI",
+  qwen: "通义千问",
+  zhipu: "智谱 GLM",
+  ollama: "Ollama",
+  volcengine_ark: "火山方舟",
+  custom: "Custom",
+};
+
 export default function Chat() {
   const [customerName, setCustomerName] = useState("张三");
   const [customerContact, setCustomerContact] = useState("13800000000");
   const [question, setQuestion] = useState("你们做 AI 客服多少钱？");
   const [result, setResult] = useState<ChatResponse | null>(null);
+  const [currentModel, setCurrentModel] = useState<AIModelConfig | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    api.getCurrentAIConfig().then(setCurrentModel).catch(() => setCurrentModel(null));
+  }, []);
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -47,6 +62,24 @@ export default function Chat() {
         <h2 className="text-xl font-semibold text-slate-950">AI 对话测试</h2>
         <p className="mt-1 text-sm text-slate-500">模拟客户咨询，验证知识库检索、AI 回复和线索沉淀。</p>
       </div>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
+        {currentModel ? (
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <span className="font-medium text-slate-900">当前模型：</span>
+              {providerLabels[currentModel.provider] ?? currentModel.provider} / {currentModel.model || "未填写模型"}
+            </div>
+            <div>
+              <span className="font-medium text-slate-900">API Key：</span>
+              {currentModel.api_key_masked ? "已配置" : "未配置"}
+            </div>
+          </div>
+        ) : (
+          <p>当前模型配置加载失败或暂无默认配置。</p>
+        )}
+        <p className="mt-2 text-xs text-slate-500">未配置 API Key 或模型调用失败时，会自动使用 mock fallback，保证演示流程可继续。</p>
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <form className="space-y-4 rounded-lg border border-slate-200 bg-white p-5" onSubmit={handleSubmit}>
@@ -102,7 +135,9 @@ export default function Chat() {
             <div className="space-y-5">
               <div>
                 <p className="mb-2 text-sm font-medium text-slate-700">AI 回复</p>
-                <div className="rounded-md bg-slate-50 p-4 text-sm leading-7 text-slate-700">{result.answer}</div>
+                <div className="whitespace-pre-line rounded-md bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+                  {cleanAIText(result.answer)}
+                </div>
               </div>
               <div className="flex flex-wrap gap-3">
                 <span className="rounded bg-brand-50 px-3 py-1.5 text-sm text-brand-700">
@@ -111,6 +146,17 @@ export default function Chat() {
                 <span className="rounded bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
                   意向等级：{formatIntentLevel(result.intent_level)}
                 </span>
+                {result.scope_type && (
+                  <span className="rounded bg-amber-50 px-3 py-1.5 text-sm text-amber-700">
+                    问题范围：{formatScopeType(result.scope_type)}
+                  </span>
+                )}
+                {result.ai_source && (
+                  <span className="rounded bg-slate-100 px-3 py-1.5 text-sm text-slate-700">
+                    回复来源：{result.ai_source === "model" ? "真实模型" : "mock 演示"}
+                    {result.provider && result.model ? `（${providerLabels[result.provider] ?? result.provider} / ${result.model}）` : ""}
+                  </span>
+                )}
               </div>
               {result.intent_level === "high" && (
                 <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

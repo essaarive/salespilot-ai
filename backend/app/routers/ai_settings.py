@@ -25,6 +25,25 @@ def mask_api_key(api_key: str | None) -> tuple[bool, str]:
     return True, f"{api_key[:3]}****{api_key[-4:]}"
 
 
+def normalize_api_key(api_key: str | None) -> str:
+    if not api_key:
+        return ""
+
+    normalized = api_key.strip()
+    for _ in range(2):
+        if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {"'", '"'}:
+            normalized = normalized[1:-1].strip()
+
+    if normalized.lower().startswith("bearer "):
+        normalized = normalized[7:].strip()
+
+    for _ in range(2):
+        if len(normalized) >= 2 and normalized[0] == normalized[-1] and normalized[0] in {"'", '"'}:
+            normalized = normalized[1:-1].strip()
+
+    return normalized
+
+
 def to_config_out(config: AIModelConfig) -> AIModelConfigOut:
     masked, preview = mask_api_key(config.api_key)
     return AIModelConfigOut(
@@ -72,7 +91,9 @@ def get_current_config(db: Session = Depends(get_db)) -> AIModelConfigCurrent:
 @router.post("/configs", response_model=AIModelConfigOut)
 def create_config(payload: AIModelConfigCreate, db: Session = Depends(get_db)) -> AIModelConfigOut:
     ensure_default_is_enabled(payload.is_default, payload.enabled)
-    config = AIModelConfig(**payload.model_dump())
+    data = payload.model_dump()
+    data["api_key"] = normalize_api_key(data.get("api_key"))
+    config = AIModelConfig(**data)
     try:
         if config.is_default:
             clear_default_flags(db)
@@ -107,8 +128,10 @@ def update_config(
 
     if clear_api_key:
         config.api_key = ""
-    elif api_key:
-        config.api_key = api_key
+    else:
+        normalized_api_key = normalize_api_key(api_key)
+        if normalized_api_key:
+            config.api_key = normalized_api_key
 
     if data.get("is_default") is True:
         clear_default_flags(db)

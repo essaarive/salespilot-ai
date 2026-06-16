@@ -32,6 +32,11 @@ const providerDefaults: Record<AIProvider, { base_url: string; model: string; na
     base_url: "http://localhost:11434/v1",
     model: "qwen2.5:7b",
   },
+  volcengine_ark: {
+    name: "火山方舟 DeepSeek",
+    base_url: "https://ark.cn-beijing.volces.com/api/v3",
+    model: "",
+  },
   custom: {
     name: "自定义兼容模型",
     base_url: "",
@@ -58,6 +63,7 @@ const providerLabels: Record<AIProvider, string> = {
   qwen: "通义千问",
   zhipu: "智谱 GLM",
   ollama: "Ollama",
+  volcengine_ark: "火山方舟",
   custom: "Custom",
 };
 
@@ -100,7 +106,7 @@ export default function AISettings() {
       provider,
       name: editing ? form.name : defaults.name,
       base_url: defaults.base_url || form.base_url,
-      model: defaults.model || form.model,
+      model: provider === "volcengine_ark" ? "" : defaults.model || form.model,
     });
   };
 
@@ -206,13 +212,14 @@ export default function AISettings() {
   };
 
   const isEditingDefault = Boolean(editing?.is_default);
+  const showArkHelp = form.provider === "volcengine_ark" || form.provider === "custom";
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-950">模型设置</h2>
-          <p className="mt-1 text-sm text-slate-500">配置 DeepSeek、OpenAI、通义千问、智谱、Ollama 或自定义兼容 API。</p>
+          <p className="mt-1 text-sm text-slate-500">配置 DeepSeek、OpenAI、通义千问、智谱、Ollama、火山方舟或自定义兼容 API。</p>
         </div>
         <button className="btn-primary" type="button" onClick={openCreate}>
           <Plus size={16} />
@@ -235,7 +242,7 @@ export default function AISettings() {
                 <p>Provider：{providerLabels[current.provider]}</p>
                 <p>Model：{current.model}</p>
                 <p className="md:col-span-2">Base URL：{current.base_url}</p>
-                <p>API Key：{current.api_key_masked ? `已配置 ${current.api_key_preview}` : "未配置"}</p>
+                <p>API Key：{current.api_key_masked ? `已配置 ${current.api_key_preview}` : "未配置，将使用 mock fallback"}</p>
                 <p>状态：{current.enabled ? "已启用" : "未启用"}</p>
               </div>
             )}
@@ -343,7 +350,13 @@ export default function AISettings() {
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-slate-700">Model</span>
-              <input className="field" value={form.model} onChange={(event) => setForm({ ...form, model: event.target.value })} required />
+              <input
+                className="field"
+                value={form.model}
+                onChange={(event) => setForm({ ...form, model: event.target.value })}
+                placeholder={form.provider === "volcengine_ark" ? "请输入接入点 ID，例如 ep-xxxx" : "模型名称"}
+                required
+              />
             </label>
             <label className="block">
               <span className="mb-1 block text-sm font-medium text-slate-700">API Key</span>
@@ -356,6 +369,17 @@ export default function AISettings() {
               />
             </label>
           </div>
+
+          {showArkHelp && (
+            <div className="rounded-md border border-sky-100 bg-sky-50 px-3 py-3 text-xs leading-5 text-sky-800">
+              <p className="font-medium text-sky-900">火山方舟 DeepSeek 配置示例</p>
+              <p>Provider：火山方舟 或 Custom</p>
+              <p>Base URL：https://ark.cn-beijing.volces.com/api/v3</p>
+              <p>Model：填写火山方舟接入点 ID，例如 ep-xxxx</p>
+              <p>API Key：填写火山方舟 API Key，不要带 Bearer、引号或空格</p>
+              <p>Base URL 不要填写 /chat/completions，系统会自动拼接。</p>
+            </div>
+          )}
 
           {editing && (
             <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -390,7 +414,7 @@ export default function AISettings() {
           </div>
 
           <div className="rounded-md bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-500">
-            API Key 不会在前端回显；编辑时留空表示保留原 Key。Ollama 本地模型可不填写 API Key。
+            API Key 不会在前端回显；保存时会自动清理 Bearer、首尾引号和空格。编辑时留空表示保留原 Key。Ollama 本地模型可不填写 API Key。
             {isEditingDefault && " 当前默认模型必须保持启用和默认状态，如需更换请先将其他启用配置设为默认。"}
           </div>
 

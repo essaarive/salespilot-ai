@@ -1,0 +1,598 @@
+# SalesPilot AI 项目开发 Skill
+
+## 项目名称
+
+SalesPilot AI / 智销助手
+
+## 使用方式
+
+当使用 Codex / Claude Code / Cursor Agent 处理本项目时，请先读取并遵守本文档。
+
+每次执行任务前应确认：
+
+- 当前任务是否会改变接口路径
+- 是否会影响 `/api/chat` 或 `/api/public/chat`
+- 是否需要执行后端、前端或 Docker 验证命令
+- 是否会影响客户官网、公开咨询页、后台、多模型配置等核心闭环
+
+推荐指令：
+
+```text
+请先读取 docs/PROJECT_SKILL.md，并严格遵守其中的项目约束。
+本次任务：xxx。
+完成后按文档要求执行验证命令。
+```
+
+## 项目定位
+
+这是一个面向中小企业的 AI 智能获客客服系统 Demo。
+
+系统包含：
+
+- 客户官网首页
+- 公开客户咨询页
+- 企业后台管理系统
+- 知识库管理
+- AI 销售客服问答
+- 简化 RAG 检索
+- 客户意向识别
+- 高意向线索自动沉淀
+- 对话记录管理
+- 后台多模型 API 配置
+- Docker Compose 部署
+
+核心业务闭环：
+
+客户访问官网
+→ 进入公开咨询页
+→ 提交姓名、联系方式、问题
+→ AI 自动回复
+→ 系统识别意向等级
+→ high 意向自动沉淀到后台客户线索
+→ 企业销售在后台跟进
+
+## 当前项目路径
+
+```text
+/Users/ryan/projects/SalesPilot AI
+```
+
+## 技术栈
+
+前端：
+
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+
+后端：
+
+- Python
+- FastAPI
+- SQLAlchemy
+- SQLite
+- Pydantic
+- Uvicorn
+
+AI：
+
+- OpenAI-Compatible Chat Completions API
+- 后台可配置多模型 Provider
+- 支持 mock fallback
+
+部署：
+
+- Docker Compose
+- 后端 FastAPI 容器
+- 前端 Node 静态服务容器
+- SQLite volume 持久化
+
+## 当前支持的模型 Provider
+
+后台「模型设置」支持：
+
+- DeepSeek
+- OpenAI
+- 通义千问
+- 智谱 GLM
+- Ollama
+- 火山方舟
+- Custom 自定义兼容模型
+
+火山方舟 DeepSeek 配置：
+
+```text
+Provider：火山方舟 或 Custom
+Base URL：https://ark.cn-beijing.volces.com/api/v3
+Model：火山方舟接入点 ID，例如 ep-xxxx
+API Key：火山方舟 API Key
+```
+
+注意：
+
+- Base URL 不要填写 `/chat/completions`
+- Model 不要填 `deepseek-chat`，除非火山方舟控制台明确要求
+- API Key 不要带 `Bearer`、引号或空格
+
+## 当前重要页面
+
+公开页面：
+
+```text
+/                 客户官网首页
+/public-chat      公开客户咨询页
+```
+
+后台页面：
+
+```text
+/login            后台登录
+/dashboard        仪表盘
+/knowledge        知识库管理
+/chat             后台 AI 对话测试
+/conversations    对话记录
+/leads            客户线索
+/ai-settings      模型设置
+```
+
+默认账号：
+
+```text
+admin / admin123
+```
+
+## 当前重要接口
+
+认证：
+
+```text
+POST /api/auth/login
+```
+
+健康检查：
+
+```text
+GET /api/health
+```
+
+公开咨询：
+
+```text
+POST /api/public/chat
+```
+
+后台 AI 对话：
+
+```text
+POST /api/chat
+```
+
+知识库：
+
+```text
+GET /api/knowledge
+GET /api/knowledge/{id}
+POST /api/knowledge
+PUT /api/knowledge/{id}
+DELETE /api/knowledge/{id}
+```
+
+对话记录：
+
+```text
+GET /api/conversations
+GET /api/conversations/{id}
+DELETE /api/conversations/{id}
+```
+
+客户线索：
+
+```text
+GET /api/leads
+GET /api/leads/{id}
+POST /api/leads
+PUT /api/leads/{id}
+DELETE /api/leads/{id}
+```
+
+模型设置：
+
+```text
+GET /api/ai-settings/configs
+GET /api/ai-settings/current
+POST /api/ai-settings/configs
+PUT /api/ai-settings/configs/{id}
+POST /api/ai-settings/configs/{id}/set-default
+POST /api/ai-settings/configs/{id}/test
+DELETE /api/ai-settings/configs/{id}
+```
+
+## 当前核心后端文件
+
+```text
+backend/app/main.py
+backend/app/database.py
+backend/app/models.py
+backend/app/schemas.py
+backend/app/seed.py
+backend/app/routers/auth.py
+backend/app/routers/dashboard.py
+backend/app/routers/knowledge.py
+backend/app/routers/chat.py
+backend/app/routers/conversations.py
+backend/app/routers/leads.py
+backend/app/routers/ai_settings.py
+backend/app/services/ai_service.py
+backend/app/services/rag_service.py
+backend/app/services/intent_service.py
+```
+
+## 当前核心前端文件
+
+```text
+frontend/src/App.tsx
+frontend/src/api/client.ts
+frontend/src/layouts/AdminLayout.tsx
+frontend/src/pages/PublicHome.tsx
+frontend/src/pages/PublicChat.tsx
+frontend/src/pages/Login.tsx
+frontend/src/pages/Dashboard.tsx
+frontend/src/pages/Knowledge.tsx
+frontend/src/pages/Chat.tsx
+frontend/src/pages/Conversations.tsx
+frontend/src/pages/Leads.tsx
+frontend/src/pages/AISettings.tsx
+frontend/src/pages/helpers.ts
+frontend/src/types/index.ts
+```
+
+## 重要开发原则
+
+所有开发必须遵守：
+
+1. 不随意改变现有接口路径。
+2. 不删除现有返回字段。
+3. 不破坏 `/api/chat` 和 `/api/public/chat` 的现有业务闭环。
+4. 不破坏知识库、线索、对话记录、多模型配置。
+5. 不执行 `npm audit fix --force`。
+6. 不引入大型 UI 框架。
+7. 保持 React + Vite + TypeScript + Tailwind CSS。
+8. 保留 mock fallback。
+9. 后端写操作要有异常处理和 rollback。
+10. API Key 不能完整回显到前端。
+11. 模型测试错误提示要使用友好的中文说明。
+12. 当前项目是 MVP / Demo，不要包装成生产可用系统。
+13. 所有修改后必须执行验证命令。
+
+## 必须执行的验证命令
+
+后端改动后执行：
+
+```bash
+python3 -m compileall backend/app
+```
+
+前端改动后执行：
+
+```bash
+cd frontend && npm run build
+```
+
+Docker 配置或环境变量改动后执行：
+
+```bash
+docker compose config
+```
+
+如 Docker 实际运行验证：
+
+```bash
+env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
+```
+
+健康检查：
+
+```bash
+curl http://localhost:8000/api/health
+```
+
+## 本地开发启动方式
+
+后端：
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI/backend
+source .venv/bin/activate
+python -m app.seed
+uvicorn app.main:app --reload --port 8000
+```
+
+前端：
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI/frontend
+npm run dev
+```
+
+访问：
+
+```text
+http://localhost:5173
+```
+
+## Docker 启动方式
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI
+env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
+```
+
+访问：
+
+```text
+http://localhost:5173
+```
+
+## 运行方式注意事项
+
+本项目不要同时混用 Docker 前端和本地 Vite 前端。
+
+如果页面刷新后看不到最新代码，优先检查：
+
+- 当前浏览器访问的是 Docker 容器还是本地 Vite
+- 是否重新执行了 `npm run dev`
+- Docker 模式下是否重新 `docker compose up --build`
+- 端口 5173 / 8000 是否被旧进程占用
+
+排查命令：
+
+```bash
+lsof -i :5173
+lsof -i :8000
+```
+
+## 数据重置
+
+本地 SQLite：
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI/backend
+rm -f salespilot.db
+python -m app.seed
+```
+
+Docker volume：
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI
+docker compose down -v
+env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
+```
+
+注意：`docker compose down -v` 会清空线索、对话、知识库等数据。
+
+## 当前意向类型
+
+```text
+greeting      问候
+pricing       询价
+cooperation   合作/接入咨询
+product       产品咨询
+delivery      交付周期
+after_sales   售后问题
+irrelevant    无关问题
+```
+
+## 当前意向等级
+
+```text
+high
+medium
+low
+```
+
+## 当前问题范围类型
+
+当前 `/api/chat` 和 `/api/public/chat` 已返回可选字段 `scope_type`，可选值：
+
+```text
+business_related   业务相关
+sales_adjacent     销售相关
+general_chat       普通闲聊
+out_of_scope       无关问题
+unsafe             风险/不合规问题
+```
+
+处理原则：
+
+- `business_related`：结合知识库认真回答，可根据意向生成线索
+- `sales_adjacent`：简短建议，并引导到 AI 客服价值
+- `general_chat`：简短回应，然后拉回 AI 销售客服业务
+- `out_of_scope`：不展开无关话题，引导回业务咨询
+- `unsafe`：拒绝协助，并引导回合规客服用途
+
+## 当前 AI 来源字段
+
+`/api/chat` 和 `/api/public/chat` 原有字段：
+
+```text
+answer
+intent_type
+intent_level
+matched_knowledge
+```
+
+新增可选字段：
+
+```text
+ai_source: model | mock
+provider
+model
+scope_type
+```
+
+后台 Chat 页面显示：
+
+```text
+回复来源：真实模型 / mock 演示
+当前模型：provider / model
+API Key：已配置 / 未配置
+```
+
+公开咨询页不暴露内部模型细节。
+
+## 真实模型 API 验收流程
+
+配置真实模型后，必须验证：
+
+1. 进入 `/ai-settings`
+2. 确认目标配置：
+   - `enabled=true`
+   - `is_default=true`
+   - API Key 已配置
+3. 点击“测试连接”
+4. 进入 `/chat`
+5. 提问：
+
+```text
+你们做 AI 客服多少钱？
+```
+
+预期：
+
+- `ai_source=model`
+- 显示真实模型回复
+- `intent_level=high`
+- 自动沉淀客户线索
+
+如果返回 `ai_source=mock`，说明真实模型调用失败，系统走了 mock fallback。
+
+## 当前对话策略
+
+系统不是通用聊天机器人，而是 AI 销售客服系统。
+
+回答原则：
+
+1. 业务相关问题：认真回答，结合知识库，最后引导客户补充需求。
+2. 销售相关问题：简短建议，并引出 AI 客服价值。
+3. 普通闲聊：可以简短回应一句，但要拉回 AI 销售客服业务。
+4. 无关问题：礼貌引导回价格、功能、交付、行业、接入方式。
+5. 高风险问题：拒绝协助，并引导回合规客服场景。
+6. 默认回复控制在 80-180 字。
+7. 不使用 Markdown 加粗符号、复杂标题或长编号列表。
+8. 不编造知识库没有的价格、功能、交付承诺。
+
+## 当前知识库方向
+
+已扩充知识库分类：
+
+- 价格套餐
+- 渠道接入
+- 企业微信
+- 飞书
+- 网页客服
+- 知识库导入
+- 数据安全
+- 私有化部署
+- 售后维护
+- 人工接管
+- 适用行业
+- 和 Coze/Dify 区别
+- 客户案例
+- 常见异议处理
+
+检索策略：
+
+- 标题、分类、关键词、内容都参与评分。
+- 支持简单同义词扩展。
+- 默认最多返回 5 条知识。
+- 有最低分数阈值，避免弱词误召回。
+
+## 模型测试错误提示规则
+
+测试连接错误需要映射为中文：
+
+```text
+401：鉴权失败，请检查 API Key 是否正确、是否带有多余引号/空格，以及该 Key 是否有权限调用当前模型或接入点。
+403：无权限调用，请检查账号权限、模型权限、接入点权限或当前模型是否已开通。
+404：接口或模型不存在，请检查 Base URL 是否正确，以及 Model 是否填写为正确的模型名或接入点 ID。
+429：请求过于频繁或额度不足，请稍后重试，或检查平台额度和限流设置。
+5xx：模型服务异常，请稍后重试，或检查模型平台服务状态。
+网络失败：连接失败，请检查 Base URL、网络连接、代理配置或服务是否可访问。
+返回格式异常：模型接口已响应，但返回格式不符合 OpenAI-Compatible Chat Completions 格式，请检查接口兼容性。
+```
+
+## API Key 处理规则
+
+保存 API Key 前自动清理：
+
+1. trim 前后空格。
+2. 去掉 `Bearer ` 前缀。
+3. 去掉首尾单引号或双引号。
+4. 新增配置清理后为空，视为未配置。
+5. 编辑时 `api_key=""` 不覆盖原 Key。
+6. 只有 `clear_api_key=true` 才清空旧 Key。
+7. 前端只显示脱敏预览，不回显完整 Key。
+
+## 当前版本记录建议
+
+```text
+v0.4.0：客户官网 + 公开咨询入口
+v0.4.1：问候与无关问题兜底优化
+v0.4.2：知识库与销售回复效果优化
+v0.4.3：模型 API 接入体验与火山方舟支持优化
+v0.4.4：问题范围识别与对话边界优化
+```
+
+## 推荐演示流程
+
+1. 打开官网首页 `/`。
+2. 点击“立即咨询”进入 `/public-chat`。
+3. 输入：
+   - 姓名：张三
+   - 联系方式：13800000000
+   - 问题：你们能接企业微信吗？多少钱？
+4. 查看 AI 回复、意向类型、意向等级、命中知识库。
+5. 登录后台 `/login`。
+6. 使用 `admin / admin123`。
+7. 进入客户线索，查看自动沉淀的 high 线索。
+8. 进入对话记录，查看完整咨询记录。
+9. 进入模型设置，展示 DeepSeek / OpenAI / 通义 / 智谱 / Ollama / 火山方舟配置。
+10. 进入后台 Chat 页面，展示当前模型、回复来源：真实模型或 mock 演示。
+
+## 截图清单
+
+```text
+docs/screenshots/public-home.png
+docs/screenshots/public-chat.png
+docs/screenshots/dashboard.png
+docs/screenshots/knowledge.png
+docs/screenshots/leads.png
+docs/screenshots/conversations.png
+docs/screenshots/ai-settings.png
+```
+
+## Codex 输出要求
+
+每次任务完成后，Codex 应输出：
+
+1. 修改 / 新增文件
+2. 核心修改点
+3. 是否改变接口路径或返回字段
+4. 验证命令和结果
+5. 仍未处理的问题
+6. 是否建议提交 Git
+
+如果任务只读验收，应明确说明“未修改代码”。
+
+## 后续路线图
+
+优先级从高到低：
+
+```text
+v0.5.0：文件上传知识库
+v0.6.0：向量检索 / Chroma / FAISS
+v0.7.0：JWT + bcrypt/passlib + RBAC
+v0.8.0：Playwright E2E 测试与自动截图
+```

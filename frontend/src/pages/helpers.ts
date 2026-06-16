@@ -1,4 +1,4 @@
-import type { IntentLevel, IntentType } from "../types";
+import type { IntentLevel, IntentType, ScopeType } from "../types";
 
 export const intentTypeLabel: Record<IntentType, string> = {
   pricing: "询价",
@@ -25,6 +25,14 @@ export const leadStatusLabel: Record<string, string> = {
   invalid: "invalid",
 };
 
+export const scopeTypeLabel: Record<ScopeType, string> = {
+  business_related: "业务相关",
+  sales_adjacent: "销售相关",
+  general_chat: "闲聊/通用问题",
+  out_of_scope: "无关问题",
+  unsafe: "风险问题",
+};
+
 export function formatIntentType(value: string) {
   return intentTypeLabel[value as IntentType] ?? (value || "未知");
 }
@@ -37,6 +45,10 @@ export function formatStatus(value: string) {
   return leadStatusLabel[value] ?? (value || "未知");
 }
 
+export function formatScopeType(value?: string) {
+  return value ? scopeTypeLabel[value as ScopeType] ?? value : "未知";
+}
+
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "2-digit",
@@ -44,6 +56,19 @@ export function formatDateTime(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+export function cleanAIText(value: string) {
+  return value
+    .replace(/```([\s\S]*?)```/g, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/__(.*?)__/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^\s{0,3}#{1,6}\s*/gm, "")
+    .replace(/\*\*/g, "")
+    .replace(/```/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 export function shortText(value: string, length = 80) {

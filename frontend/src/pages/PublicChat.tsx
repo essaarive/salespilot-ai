@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
 import type { ChatResponse } from "../types";
-import { formatIntentLevel, formatIntentType } from "./helpers";
+import { cleanAIText, formatIntentLevel, formatIntentType } from "./helpers";
 
 const presetQuestions = [
   "你们做 AI 客服多少钱？",
@@ -101,6 +101,9 @@ export default function PublicChat() {
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
               本页会模拟真实客户咨询入口：AI 基于知识库回复问题，识别客户意向，并将 high 意向自动沉淀到后台客户线索。
             </p>
+            <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500">
+              本页面会调用当前企业配置的大模型；如模型不可用，将使用演示回复完成流程。
+            </p>
           </div>
 
           <form className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm" onSubmit={handleSubmit}>
@@ -170,7 +173,9 @@ export default function PublicChat() {
               <div className="space-y-5">
                 <div>
                   <p className="mb-2 text-sm font-medium text-slate-700">AI 回复</p>
-                  <div className="rounded-lg bg-slate-50 p-4 text-sm leading-7 text-slate-700">{result.answer}</div>
+                  <div className="whitespace-pre-line rounded-lg bg-slate-50 p-4 text-sm leading-7 text-slate-700">
+                    {cleanAIText(result.answer)}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3">
@@ -243,7 +248,7 @@ export default function PublicChat() {
           <section className="rounded-xl bg-slate-950 p-5 text-white shadow-soft">
             <h2 className="font-semibold">演示提示</h2>
             <p className="mt-3 text-sm leading-6 text-slate-300">
-              未配置当前模型 API Key 时，系统会使用 mock fallback，仍可完整演示 AI 回复、意向识别和线索沉淀。
+              未配置当前模型 API Key 或模型服务不可用时，系统会使用演示回复，仍可完整演示 AI 回复、意向识别和线索沉淀。
             </p>
             <div className="mt-5 flex flex-col gap-2">
               <Link className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-slate-100" to="/">

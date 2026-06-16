@@ -5,9 +5,10 @@ from pydantic import BaseModel, ConfigDict, model_validator
 
 IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sales", "greeting", "irrelevant"]
 IntentLevel = Literal["high", "medium", "low"]
+ScopeType = Literal["business_related", "sales_adjacent", "general_chat", "out_of_scope", "unsafe"]
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]
-AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "custom"]
+AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "volcengine_ark", "custom"]
 
 
 class LoginRequest(BaseModel):
@@ -56,6 +57,10 @@ class ChatResponse(BaseModel):
     intent_type: IntentType
     intent_level: IntentLevel
     matched_knowledge: List[KnowledgeOut]
+    ai_source: Optional[Literal["model", "mock"]] = None
+    provider: Optional[str] = None
+    model: Optional[str] = None
+    scope_type: Optional[ScopeType] = None
 
 
 class ConversationOut(BaseModel):

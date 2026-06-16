@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import type { Conversation } from "../types";
-import { formatDateTime, formatIntentLevel, formatIntentType, shortText } from "./helpers";
+import { cleanAIText, formatDateTime, formatIntentLevel, formatIntentType, shortText } from "./helpers";
 
 export default function Conversations() {
   const [items, setItems] = useState<Conversation[]>([]);
@@ -74,7 +74,7 @@ export default function Conversations() {
           { key: "customer", title: "客户", render: (row) => <span className="font-medium text-slate-950">{row.customer_name}</span> },
           { key: "contact", title: "联系方式", render: (row) => row.customer_contact || "-" },
           { key: "question", title: "问题", render: (row) => shortText(row.question, 52) },
-          { key: "answer", title: "回复摘要", render: (row) => <span className="text-slate-600">{shortText(row.answer, 70)}</span> },
+          { key: "answer", title: "回复摘要", render: (row) => <span className="text-slate-600">{shortText(cleanAIText(row.answer), 70)}</span> },
           { key: "intent", title: "意向类型", render: (row) => formatIntentType(row.intent_type) },
           {
             key: "level",
@@ -123,7 +123,7 @@ export default function Conversations() {
             </div>
             <div>
               <p className="mb-2 font-medium text-slate-700">AI 回复</p>
-              <div className="rounded-md bg-slate-50 p-4 leading-7 text-slate-700">{selected.answer}</div>
+              <div className="whitespace-pre-line rounded-md bg-slate-50 p-4 leading-7 text-slate-700">{cleanAIText(selected.answer)}</div>
             </div>
           </div>
         )}

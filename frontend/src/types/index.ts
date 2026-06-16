@@ -49,6 +49,7 @@ export type IntentType =
   | "irrelevant";
 
 export type IntentLevel = "high" | "medium" | "low";
+export type ScopeType = "business_related" | "sales_adjacent" | "general_chat" | "out_of_scope" | "unsafe";
 
 export interface DashboardSummary {
   knowledge_count: number;
@@ -63,9 +64,13 @@ export interface ChatResponse {
   intent_type: IntentType;
   intent_level: IntentLevel;
   matched_knowledge: KnowledgeItem[];
+  ai_source?: "model" | "mock";
+  provider?: string;
+  model?: string;
+  scope_type?: ScopeType;
 }
 
-export type AIProvider = "deepseek" | "openai" | "qwen" | "zhipu" | "ollama" | "custom";
+export type AIProvider = "deepseek" | "openai" | "qwen" | "zhipu" | "ollama" | "volcengine_ark" | "custom";
 
 export interface AIModelConfig {
   id: number;

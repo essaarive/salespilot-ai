@@ -20,7 +20,7 @@ const features = [
   {
     icon: Zap,
     title: "多模型 API 接入",
-    description: "后台可配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama 或自定义 OpenAI-Compatible API。",
+    description: "后台可配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama、火山方舟或自定义 OpenAI-Compatible API。",
   },
 ];
 
@@ -64,7 +64,7 @@ const plans = [
 
 const faqs = [
   ["没有 API Key 可以演示吗？", "可以。系统内置 mock fallback，本地未配置模型 API Key 时也能完整演示客户咨询、AI 回复、意向识别和线索沉淀流程。"],
-  ["能接入不同模型吗？", "可以。后台支持 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama 和自定义 OpenAI-Compatible API，并可以选择当前默认模型。"],
+  ["能接入不同模型吗？", "可以。后台支持 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama、火山方舟和自定义 OpenAI-Compatible API，并可以选择当前默认模型。"],
   ["客户咨询会保存吗？", "会。系统会保存对话记录；当客户被识别为高意向时，会自动沉淀为客户线索。"],
   ["这个项目可以直接生产上线吗？", "当前版本是 MVP Demo，适合作品展示和业务验证。生产环境建议补充 JWT、密码哈希、RBAC、API Key 加密存储、日志审计、限流等能力。"],
 ];
