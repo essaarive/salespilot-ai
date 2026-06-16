@@ -12,6 +12,9 @@ from app.services.rag_service import build_context, retrieve_knowledge
 router = APIRouter(prefix="/api/chat", tags=["chat"], dependencies=[Depends(verify_token)])
 public_router = APIRouter(prefix="/api/public/chat", tags=["public-chat"])
 
+GREETING_REPLY = "您好，我是 SalesPilot AI 智销助手，可以为您介绍 AI 客服方案、价格、交付周期、适用行业和售后服务。请问您想了解哪方面？"
+IRRELEVANT_REPLY = "您好，我主要用于解答 AI 客服系统、价格方案、交付周期、适用行业和售后服务相关问题。您可以告诉我想了解的业务场景或需求。"
+
 
 def build_prompt(context: str, question: str) -> str:
     return f"""你是一个专业、简洁、可靠的中文 AI 销售客服顾问。
@@ -33,7 +36,11 @@ async def handle_chat(payload: ChatRequest, db: Session) -> ChatResponse:
     matched_knowledge = retrieve_knowledge(payload.question, db)
     intent = detect_intent(payload.question, has_related_knowledge=bool(matched_knowledge))
 
-    if not matched_knowledge:
+    if intent.intent_type == "greeting":
+        answer = GREETING_REPLY
+    elif intent.intent_type == "irrelevant" and not matched_knowledge:
+        answer = IRRELEVANT_REPLY
+    elif not matched_knowledge:
         answer = "目前资料中没有相关信息"
     else:
         prompt = build_prompt(build_context(matched_knowledge), payload.question)

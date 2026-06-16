@@ -6,6 +6,7 @@ export const intentTypeLabel: Record<IntentType, string> = {
   product: "产品咨询",
   delivery: "交付周期",
   after_sales: "售后问题",
+  greeting: "问候",
   irrelevant: "无关问题",
 };
 

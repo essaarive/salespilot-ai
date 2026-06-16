@@ -3,7 +3,7 @@ from typing import List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
-IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sales", "irrelevant"]
+IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sales", "greeting", "irrelevant"]
 IntentLevel = Literal["high", "medium", "low"]
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]

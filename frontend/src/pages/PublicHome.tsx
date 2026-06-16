@@ -10,7 +10,7 @@ const features = [
   {
     icon: BrainCircuit,
     title: "客户意向识别",
-    description: "自动识别询价、合作、交付、售后、无关问题等不同咨询类型，并判断 high / medium / low 意向等级。",
+    description: "自动识别询价、合作、交付、售后、问候、无关问题等不同咨询类型，并判断 high / medium / low 意向等级。",
   },
   {
     icon: UsersRound,

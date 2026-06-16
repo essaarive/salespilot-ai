@@ -45,6 +45,7 @@ export type IntentType =
   | "product"
   | "delivery"
   | "after_sales"
+  | "greeting"
   | "irrelevant";
 
 export type IntentLevel = "high" | "medium" | "low";
