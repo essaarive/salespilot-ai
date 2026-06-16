@@ -10,6 +10,8 @@ import Dashboard from "./pages/Dashboard";
 import Knowledge from "./pages/Knowledge";
 import Leads from "./pages/Leads";
 import Login from "./pages/Login";
+import PublicChat from "./pages/PublicChat";
+import PublicHome from "./pages/PublicHome";
 
 function RequireAuth({ children }: { children: ReactElement }) {
   return getToken() ? children : <Navigate to="/login" replace />;
@@ -18,16 +20,16 @@ function RequireAuth({ children }: { children: ReactElement }) {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<PublicHome />} />
+      <Route path="/public-chat" element={<PublicChat />} />
       <Route path="/login" element={<Login />} />
       <Route
-        path="/"
         element={
           <RequireAuth>
             <AdminLayout />
           </RequireAuth>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="knowledge" element={<Knowledge />} />
         <Route path="ai-settings" element={<AISettings />} />
@@ -35,7 +37,7 @@ export default function App() {
         <Route path="conversations" element={<Conversations />} />
         <Route path="leads" element={<Leads />} />
       </Route>
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

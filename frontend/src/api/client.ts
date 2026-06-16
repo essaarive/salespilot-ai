@@ -54,6 +54,23 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function publicRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(options.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    const detail = await response.json().catch(() => ({}));
+    throw new Error(detail.detail ?? "请求失败");
+  }
+
+  return response.json() as Promise<T>;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<LoginResponse>("/api/auth/login", {
@@ -76,6 +93,11 @@ export const api = {
   deleteKnowledge: (id: number) => request<{ message: string }>(`/api/knowledge/${id}`, { method: "DELETE" }),
   chat: (payload: { customer_name: string; customer_contact: string; question: string }) =>
     request<ChatResponse>("/api/chat", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  publicChat: (payload: { customer_name: string; customer_contact: string; question: string }) =>
+    publicRequest<ChatResponse>("/api/public/chat", {
       method: "POST",
       body: JSON.stringify(payload),
     }),

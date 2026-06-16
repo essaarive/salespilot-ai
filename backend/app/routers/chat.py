@@ -10,6 +10,7 @@ from app.services.intent_service import detect_intent
 from app.services.rag_service import build_context, retrieve_knowledge
 
 router = APIRouter(prefix="/api/chat", tags=["chat"], dependencies=[Depends(verify_token)])
+public_router = APIRouter(prefix="/api/public/chat", tags=["public-chat"])
 
 
 def build_prompt(context: str, question: str) -> str:
@@ -28,8 +29,7 @@ def build_prompt(context: str, question: str) -> str:
 请生成销售客服回复。"""
 
 
-@router.post("", response_model=ChatResponse)
-async def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+async def handle_chat(payload: ChatRequest, db: Session) -> ChatResponse:
     matched_knowledge = retrieve_knowledge(payload.question, db)
     intent = detect_intent(payload.question, has_related_knowledge=bool(matched_knowledge))
 
@@ -74,3 +74,13 @@ async def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatRespo
         intent_level=intent.intent_level,
         matched_knowledge=matched_knowledge,
     )
+
+
+@router.post("", response_model=ChatResponse)
+async def chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+    return await handle_chat(payload, db)
+
+
+@public_router.post("", response_model=ChatResponse)
+async def public_chat(payload: ChatRequest, db: Session = Depends(get_db)) -> ChatResponse:
+    return await handle_chat(payload, db)

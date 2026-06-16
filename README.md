@@ -10,19 +10,27 @@
 
 | 页面 | 截图路径 |
 | --- | --- |
+| 官网首页 | `docs/screenshots/public-home.png` |
+| 公开咨询页 | `docs/screenshots/public-chat.png` |
 | 仪表盘 | `docs/screenshots/dashboard.png` |
 | AI 对话测试 | `docs/screenshots/chat.png` |
 | 知识库管理 | `docs/screenshots/knowledge.png` |
 | 客户线索 | `docs/screenshots/leads.png` |
+| 模型设置 | `docs/screenshots/ai-settings.png` |
 
+![官网首页截图占位](docs/screenshots/public-home.png)
+![公开咨询页截图占位](docs/screenshots/public-chat.png)
 ![仪表盘截图占位](docs/screenshots/dashboard.png)
 ![AI 对话截图占位](docs/screenshots/chat.png)
 ![知识库管理截图占位](docs/screenshots/knowledge.png)
 ![客户线索截图占位](docs/screenshots/leads.png)
+![模型设置截图占位](docs/screenshots/ai-settings.png)
 
 ## 核心功能
 
 - 登录演示：默认管理员账号 `admin / admin123`
+- 客户官网首页：面向客户展示产品能力、流程、场景、套餐和 FAQ
+- 公开咨询页：客户无需登录即可提交咨询，触发 AI 回复和意向识别
 - 仪表盘：首页统计、最近咨询、高意向线索提醒、意向等级说明
 - 知识库管理：新增、编辑、删除、搜索、分类筛选、状态展示
 - 简化 RAG：根据客户问题匹配知识库标题、分类、关键词和内容
@@ -77,7 +85,7 @@ Frontend static server
   |  /api reverse proxy
   v
 FastAPI Backend
-  |-- Routers: auth, dashboard, knowledge, chat, conversations, leads
+  |-- Routers: auth, dashboard, knowledge, chat, public chat, conversations, leads
   |-- Services: AI service, RAG retriever, intent detector
   v
 SQLite
@@ -247,6 +255,14 @@ http://host.docker.internal:11434/v1
 
 也可以按实际 Docker 网络配置改为对应容器名或网关地址。
 
+## 公开官网与客户咨询页
+
+- `/` 是客户官网首页，用于展示 SalesPilot AI 的产品能力、使用流程、适用场景、套餐方案和常见问题。
+- `/public-chat` 是公开客户咨询页，客户无需登录即可提交姓名、联系方式和咨询问题。
+- 公开咨询页调用 `POST /api/public/chat`，复用后台 AI 对话逻辑，包括知识库检索、AI 回复、意向识别、对话记录保存和 high 意向线索沉淀。
+- high 意向咨询会自动进入后台「客户线索」，企业销售可登录后台继续跟进。
+- 后台登录地址为 `/login`，默认账号为 `admin`，默认密码为 `admin123`。
+
 ## 默认账号密码
 
 - 用户名：`admin`
@@ -254,18 +270,29 @@ http://host.docker.internal:11434/v1
 
 ## 推荐演示流程
 
-1. 使用 `admin / admin123` 登录系统。
-2. 查看仪表盘统计，包括知识库数量、今日咨询数、高意向线索和最近咨询。
-3. 进入知识库，展示价格、交付、售后等内置资料。
-4. 新增一条“企业微信接入”知识：
+1. 打开官网首页：`http://localhost:5173/`
+2. 点击“立即咨询”，进入 `/public-chat`。
+3. 输入：
+   - 姓名：`张三`
+   - 联系方式：`13800000000`
+   - 问题：`你们能接企业微信吗？多少钱？`
+4. 查看 AI 回复、意向类型、意向等级和 high 线索提示。
+5. 打开 `/login`，使用 `admin / admin123` 登录后台。
+6. 进入客户线索页面，查看刚刚自动沉淀的 high 线索。
+7. 进入对话记录页面，查看完整咨询记录。
+8. 进入模型设置页面，展示多模型 API 配置能力。
+
+可选后台演示流程：
+
+1. 查看仪表盘统计，包括知识库数量、今日咨询数、高意向线索和最近咨询。
+2. 进入知识库，展示价格、交付、售后等内置资料。
+3. 新增一条“企业微信接入”知识：
    - 标题：`企业微信接入`
    - 分类：`渠道接入`
    - 关键词：`企业微信, 企微, 微信, 客服, 渠道`
    - 内容：`系统可根据客户需求对接企业微信、飞书、网页客服等渠道，高级版支持多渠道统一接待和线索沉淀。`
-5. 进入 AI 对话测试，输入：`你们能接企业微信吗？多少钱？`
-6. 展示系统根据知识库生成回复，并识别为 high 意向。
-7. 进入客户线索页面，展示系统自动沉淀的线索。
-8. 进入对话记录页面，展示完整问答记录。
+4. 进入 AI 对话测试，输入：`你们能接企业微信吗？多少钱？`
+5. 展示系统根据知识库生成回复，并识别为 high 意向。
 
 ## API 能力概览
 
@@ -298,6 +325,7 @@ http://host.docker.internal:11434/v1
 AI 对话：
 
 - `POST /api/chat`
+- `POST /api/public/chat`
 
 对话记录：
 
