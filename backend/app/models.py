@@ -1,7 +1,6 @@
-from datetime import datetime
-
 from sqlalchemy import Boolean, Column, DateTime, Integer, String, Text
 
+from app.core.timezone import now_utc_naive
 from app.database import Base
 
 
@@ -12,7 +11,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True, nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(50), default="admin", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
 
 
 class KnowledgeItem(Base):
@@ -24,8 +23,8 @@ class KnowledgeItem(Base):
     content = Column(Text, nullable=False)
     keywords = Column(String(255), default="", nullable=False)
     status = Column(String(30), default="active", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 
 
 class Conversation(Base):
@@ -39,7 +38,7 @@ class Conversation(Base):
     intent_type = Column(String(50), index=True, nullable=False)
     intent_level = Column(String(30), index=True, nullable=False)
     source = Column(String(50), default="web", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
 
 
 class Lead(Base):
@@ -52,8 +51,8 @@ class Lead(Base):
     intent_level = Column(String(30), default="high", nullable=False)
     status = Column(String(50), default="new", nullable=False)
     remark = Column(Text, default="", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 
 
 class Setting(Base):
@@ -62,8 +61,8 @@ class Setting(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String(120), unique=True, index=True, nullable=False)
     value = Column(Text, default="", nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 
 
 class AIModelConfig(Base):
@@ -77,5 +76,5 @@ class AIModelConfig(Base):
     model = Column(String(120), nullable=False)
     enabled = Column(Boolean, default=True, nullable=False)
     is_default = Column(Boolean, default=False, index=True, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)

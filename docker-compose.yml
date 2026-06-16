@@ -28,6 +28,7 @@ services:
       VOLCENGINE_ARK_MODEL: ${VOLCENGINE_ARK_MODEL:-}
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/salespilot.db}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
+      TZ: ${TZ:-Asia/Shanghai}
     volumes:
       - salespilot_data:/data
     ports:
@@ -42,6 +43,8 @@ services:
     container_name: salespilot-ai-frontend
     depends_on:
       - backend
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
     ports:
       - "5173:80"
     restart: unless-stopped

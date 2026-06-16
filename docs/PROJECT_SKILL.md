@@ -334,6 +334,16 @@ env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
 http://localhost:5173
 ```
 
+## 时间配置
+
+```text
+默认 APP_TIMEZONE=Asia/Shanghai。
+Docker 中同时设置 TZ=Asia/Shanghai。
+后端时间字段统一按 UTC 生成和保存，接口返回 ISO 时间字符串。
+前端统一按 Asia/Shanghai 格式化展示时间，格式为 yyyy-MM-dd HH:mm。
+如果部署到其他地区，可修改 APP_TIMEZONE，并按需要同步调整前端展示时区。
+```
+
 ## 运行方式注意事项
 
 本项目不要同时混用 Docker 前端和本地 Vite 前端。
@@ -543,6 +553,7 @@ v0.4.1：问候与无关问题兜底优化
 v0.4.2：知识库与销售回复效果优化
 v0.4.3：模型 API 接入体验与火山方舟支持优化
 v0.4.4：问题范围识别与对话边界优化
+v0.4.5：系统时间生成与展示时区统一
 ```
 
 ## 推荐演示流程

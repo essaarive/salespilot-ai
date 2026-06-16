@@ -49,13 +49,37 @@ export function formatScopeType(value?: string) {
   return value ? scopeTypeLabel[value as ScopeType] ?? value : "未知";
 }
 
-export function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
+const APP_DISPLAY_TIME_ZONE = "Asia/Shanghai";
+
+function parseDateTime(value?: string | null) {
+  if (!value) return null;
+
+  const normalized = String(value).trim();
+  if (!normalized) return null;
+
+  const hasTimezone = /(?:z|[+-]\d{2}:?\d{2})$/i.test(normalized);
+  const isoLike = /^\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}/.test(normalized);
+  const date = new Date(hasTimezone || !isoLike ? normalized : `${normalized.replace(" ", "T")}Z`);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function formatDateTime(value?: string | null) {
+  const date = parseDateTime(value);
+  if (!date) return value || "-";
+
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: APP_DISPLAY_TIME_ZONE,
+    year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+    hour12: false,
+  }).formatToParts(date);
+
+  const partMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${partMap.year}-${partMap.month}-${partMap.day} ${partMap.hour}:${partMap.minute}`;
 }
 
 export function cleanAIText(value: string) {

@@ -26,6 +26,8 @@ cp .env.example .env
 
 AI 对话优先使用数据库中「模型设置」页面的默认配置。环境变量保留为 fallback，可配置 `AI_PROVIDER`、`AI_API_KEY`、`AI_BASE_URL`、`AI_MODEL` 或各 Provider 专用变量。
 
+时间默认使用 `APP_TIMEZONE=Asia/Shanghai`。当前 Demo 的 SQLite 时间字段按 UTC 生成和保存，接口返回 ISO 时间字符串，前端统一按 Asia/Shanghai 展示。
+
 ## 认证说明
 
 当前认证为演示版简化实现，默认账号为 `admin / admin123`，接口鉴权使用简单固定 token。该实现仅用于本地作品演示，不应直接用于生产环境。

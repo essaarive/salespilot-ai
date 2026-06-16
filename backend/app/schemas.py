@@ -1,7 +1,9 @@
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
+
+from app.core.timezone import format_datetime
 
 IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sales", "greeting", "irrelevant"]
 IntentLevel = Literal["high", "medium", "low"]
@@ -9,6 +11,12 @@ ScopeType = Literal["business_related", "sales_adjacent", "general_chat", "out_o
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]
 AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "volcengine_ark", "custom"]
+
+
+class DateTimeSerializedModel(BaseModel):
+    @field_serializer("created_at", "updated_at", when_used="json", check_fields=False)
+    def serialize_datetime(self, value: datetime) -> str:
+        return format_datetime(value)
 
 
 class LoginRequest(BaseModel):
@@ -38,7 +46,7 @@ class KnowledgeUpdate(KnowledgeBase):
     pass
 
 
-class KnowledgeOut(KnowledgeBase):
+class KnowledgeOut(DateTimeSerializedModel, KnowledgeBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -63,7 +71,7 @@ class ChatResponse(BaseModel):
     scope_type: Optional[ScopeType] = None
 
 
-class ConversationOut(BaseModel):
+class ConversationOut(DateTimeSerializedModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -106,7 +114,7 @@ class LeadUpdate(BaseModel):
         return self
 
 
-class LeadOut(LeadBase):
+class LeadOut(DateTimeSerializedModel, LeadBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -150,7 +158,7 @@ class AIModelConfigUpdate(BaseModel):
     is_default: Optional[bool] = None
 
 
-class AIModelConfigOut(AIModelConfigBase):
+class AIModelConfigOut(DateTimeSerializedModel, AIModelConfigBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
