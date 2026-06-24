@@ -1,4 +1,37 @@
-import type { AnswerBasis, DocumentParseStatus, HandoffReason, IntentLevel, IntentType, RetrievalConfidence, ScopeType } from "../types";
+import type { AnswerBasis, DocumentParseStatus, HandoffReason, IntentLevel, IntentType, PublicCompanySettings, RetrievalConfidence, ScopeType } from "../types";
+
+export const defaultCompanySettings: PublicCompanySettings = {
+  company_name: "SalesPilot AI",
+  company_short_name: "SalesPilot AI",
+  company_logo_url: "",
+  company_intro: "面向中小企业的 AI 智能获客客服系统。",
+  customer_service_name: "智销助手",
+  customer_service_avatar_url: "",
+  welcome_message: "您好，我是 SalesPilot AI 智销助手，可以为您介绍 AI 客服方案、知识库能力、价格、交付周期和接入方式。",
+  brand_color: "#2563EB",
+  business_scope: "AI 客服、知识库问答、销售线索沉淀、多模型接入、企业官网咨询。",
+  human_contact_phone: "",
+  human_contact_wechat: "",
+  human_contact_email: "",
+  business_hours: "周一至周五 09:00-18:00",
+  handoff_message: "您的问题已记录，我们建议由工作人员进一步确认并跟进。",
+};
+
+export function normalizeBrandColor(value?: string) {
+  return /^#[0-9A-Fa-f]{6}$/.test(value || "") ? value! : defaultCompanySettings.brand_color;
+}
+
+export function getCompanyDisplayName(settings: PublicCompanySettings) {
+  return settings.company_short_name || settings.company_name || defaultCompanySettings.company_short_name;
+}
+
+export function hasHumanContact(settings: PublicCompanySettings) {
+  return Boolean(
+    settings.human_contact_phone?.trim() ||
+    settings.human_contact_wechat?.trim() ||
+    settings.human_contact_email?.trim(),
+  );
+}
 
 export const intentTypeLabel: Record<IntentType, string> = {
   pricing: "询价",

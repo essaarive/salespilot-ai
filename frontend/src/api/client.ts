@@ -8,8 +8,11 @@ import type {
   DocumentDetail,
   DocumentRecord,
   KnowledgeItem,
+  CompanySettings,
+  CompanySettingsPayload,
   Lead,
   LoginResponse,
+  PublicCompanySettings,
 } from "../types";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
@@ -202,4 +205,11 @@ export const api = {
     request<AIModelConfigTestResult>(`/api/ai-settings/configs/${id}/test`, { method: "POST" }),
   deleteAIConfig: (id: number) =>
     request<{ message: string }>(`/api/ai-settings/configs/${id}`, { method: "DELETE" }),
+  getCompanySettings: () => request<CompanySettings>("/api/company-settings"),
+  updateCompanySettings: (payload: CompanySettingsPayload) =>
+    request<CompanySettings>("/api/company-settings", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    }),
+  getPublicCompanySettings: () => publicRequest<PublicCompanySettings>("/api/company-settings/public"),
 };

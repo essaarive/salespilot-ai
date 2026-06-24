@@ -103,3 +103,26 @@ class AIModelConfig(Base):
     is_default = Column(Boolean, default=False, index=True, nullable=False)
     created_at = Column(DateTime, default=now_utc_naive, nullable=False)
     updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
+
+
+class CompanySettings(Base):
+    __tablename__ = "company_settings"
+
+    id = Column(Integer, primary_key=True, index=True)
+    company_name = Column(String(160), nullable=False)
+    company_short_name = Column(String(80), default="", nullable=False)
+    company_logo_url = Column(String(500), default="", nullable=False)
+    company_intro = Column(Text, default="", nullable=False)
+    customer_service_name = Column(String(80), nullable=False)
+    customer_service_avatar_url = Column(String(500), default="", nullable=False)
+    welcome_message = Column(Text, default="", nullable=False)
+    brand_color = Column(String(20), default="#2563EB", nullable=False)
+    business_scope = Column(Text, default="", nullable=False)
+    human_contact_phone = Column(String(80), default="", nullable=False)
+    human_contact_wechat = Column(String(120), default="", nullable=False)
+    human_contact_email = Column(String(160), default="", nullable=False)
+    business_hours = Column(String(160), default="", nullable=False)
+    handoff_message = Column(Text, default="", nullable=False)
+    forbidden_topics = Column(Text, default="", nullable=False)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)

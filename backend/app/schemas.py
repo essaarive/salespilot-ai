@@ -1,7 +1,8 @@
+import re
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, field_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator, model_validator
 
 from app.core.timezone import format_datetime
 
@@ -229,3 +230,88 @@ class AIModelConfigTestResult(BaseModel):
     message: str
     provider: Optional[str] = None
     model: Optional[str] = None
+
+
+class CompanySettingsBase(BaseModel):
+    company_name: str
+    company_short_name: str = ""
+    company_logo_url: str = ""
+    company_intro: str = ""
+    customer_service_name: str
+    customer_service_avatar_url: str = ""
+    welcome_message: str = ""
+    brand_color: str = "#2563EB"
+    business_scope: str = ""
+    human_contact_phone: str = ""
+    human_contact_wechat: str = ""
+    human_contact_email: str = ""
+    business_hours: str = ""
+    handoff_message: str = ""
+    forbidden_topics: str = ""
+
+    @field_validator(
+        "company_name",
+        "company_short_name",
+        "company_logo_url",
+        "company_intro",
+        "customer_service_name",
+        "customer_service_avatar_url",
+        "welcome_message",
+        "brand_color",
+        "business_scope",
+        "human_contact_phone",
+        "human_contact_wechat",
+        "human_contact_email",
+        "business_hours",
+        "handoff_message",
+        "forbidden_topics",
+        mode="before",
+    )
+    @classmethod
+    def normalize_text(cls, value: object) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @model_validator(mode="after")
+    def validate_required_and_color(self) -> "CompanySettingsBase":
+        if not self.company_name:
+            raise ValueError("企业名称不能为空")
+        if not self.customer_service_name:
+            raise ValueError("客服名称不能为空")
+        if not self.brand_color:
+            self.brand_color = "#2563EB"
+        if not re.fullmatch(r"#[0-9A-Fa-f]{6}", self.brand_color):
+            raise ValueError("品牌主色必须是合法 Hex 颜色，例如 #2563EB")
+        return self
+
+
+class CompanySettingsUpdate(CompanySettingsBase):
+    pass
+
+
+class CompanySettingsOut(DateTimeSerializedModel, CompanySettingsBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class PublicCompanySettings(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    company_name: str
+    company_short_name: str = ""
+    company_logo_url: str = ""
+    company_intro: str = ""
+    customer_service_name: str
+    customer_service_avatar_url: str = ""
+    welcome_message: str = ""
+    brand_color: str = "#2563EB"
+    business_scope: str = ""
+    human_contact_phone: str = ""
+    human_contact_wechat: str = ""
+    human_contact_email: str = ""
+    business_hours: str = ""
+    handoff_message: str = ""

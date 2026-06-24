@@ -5,6 +5,7 @@ import { getToken } from "./api/client";
 import AdminLayout from "./layouts/AdminLayout";
 import AISettings from "./pages/AISettings";
 import Chat from "./pages/Chat";
+import CompanySettings from "./pages/CompanySettings";
 import Conversations from "./pages/Conversations";
 import Dashboard from "./pages/Dashboard";
 import Knowledge from "./pages/Knowledge";
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="knowledge" element={<Knowledge />} />
         <Route path="ai-settings" element={<AISettings />} />
+        <Route path="company-settings" element={<CompanySettings />} />
         <Route path="chat" element={<Chat />} />
         <Route path="conversations" element={<Conversations />} />
         <Route path="leads" element={<Leads />} />

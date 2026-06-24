@@ -32,6 +32,7 @@ SalesPilot AI / 智销助手
 - 客户官网首页
 - 公开客户咨询页
 - 企业后台管理系统
+- 单企业品牌配置
 - 知识库管理
 - 文件知识库上传
 - 回答可信度与人工兜底
@@ -136,6 +137,7 @@ API Key：火山方舟 API Key
 /conversations    对话记录
 /leads            客户线索
 /ai-settings      模型设置
+/company-settings 企业设置
 ```
 
 默认账号：
@@ -220,6 +222,14 @@ POST /api/ai-settings/configs/{id}/test
 DELETE /api/ai-settings/configs/{id}
 ```
 
+企业设置：
+
+```text
+GET /api/company-settings
+PUT /api/company-settings
+GET /api/company-settings/public
+```
+
 ## 当前核心后端文件
 
 ```text
@@ -258,6 +268,7 @@ frontend/src/pages/Chat.tsx
 frontend/src/pages/Conversations.tsx
 frontend/src/pages/Leads.tsx
 frontend/src/pages/AISettings.tsx
+frontend/src/pages/CompanySettings.tsx
 frontend/src/pages/helpers.ts
 frontend/src/types/index.ts
 ```
@@ -592,6 +603,51 @@ complaint_or_risk         投诉、退款、赔偿、纠纷、严重问题
 - 普通闲聊、无关问题和风险拒答不应因为弱关键词自动生成 high 线索。
 - 当前可信度是 Demo 级关键词规则，不等同于生产级事实校验。
 
+## 当前企业品牌配置
+
+v0.8.0 支持单企业品牌配置，不做多租户。
+
+后台页面：
+
+```text
+/company-settings
+```
+
+数据库表：
+
+```text
+company_settings
+```
+
+主要字段：
+
+```text
+company_name
+company_short_name
+company_logo_url
+company_intro
+customer_service_name
+customer_service_avatar_url
+welcome_message
+brand_color
+business_scope
+human_contact_phone
+human_contact_wechat
+human_contact_email
+business_hours
+handoff_message
+forbidden_topics
+```
+
+规则：
+
+- 系统启动时如果没有 `company_settings` 记录，会自动创建默认 SalesPilot AI 配置。
+- 公开接口 `/api/company-settings/public` 不返回 `forbidden_topics`、数据库内部字段、模型配置或 API Key。
+- 官网首页和公开咨询页优先使用企业名称、Logo URL、客服名称、欢迎语、品牌主色和人工联系方式。
+- `/api/chat` 和 `/api/public/chat` 的 Prompt 会注入当前企业名称、客服名称、业务范围、工作时间、人工联系方式和禁止回答内容。
+- 命中 `forbidden_topics` 时不展开回答，走人工兜底并设置 `requires_handoff=true`。
+- Logo 第一版仅支持 URL；不支持 Logo 文件上传、企业注册、多租户、自定义域名或复杂主题编辑器。
+
 ## 真实模型 API 验收流程
 
 配置真实模型后，必须验证：
@@ -696,6 +752,7 @@ v0.4.4：问题范围识别与对话边界优化
 v0.4.5：系统时间生成与展示时区统一
 v0.6.0：企业文件知识库上传版
 v0.7.0：回答可信度、人工兜底与文件知识状态管理
+v0.8.0：单企业品牌配置与企业专属 AI 客服版
 ```
 
 ## 推荐演示流程
@@ -746,7 +803,7 @@ docs/screenshots/ai-settings.png
 
 ```text
 v0.6.0：企业文件知识库上传版
-v0.8.0：向量检索 / Chroma / FAISS
-v0.9.0：JWT + bcrypt/passlib + RBAC
-v1.0.0：Playwright E2E 测试与自动截图
+v0.9.0：向量检索 / Chroma / FAISS
+v1.0.0：JWT + bcrypt/passlib + RBAC
+v1.1.0：Playwright E2E 测试与自动截图
 ```

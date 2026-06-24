@@ -1,5 +1,6 @@
 from app.database import SessionLocal, init_db
 from app.models import AIModelConfig, KnowledgeItem, User
+from app.services.company_service import ensure_company_settings
 
 
 SEED_KNOWLEDGE = [
@@ -277,6 +278,7 @@ def seed() -> None:
                 db.add(AIModelConfig(**payload))
 
         db.commit()
+        ensure_company_settings(db)
         print("Seed data initialized.")
     finally:
         db.close()

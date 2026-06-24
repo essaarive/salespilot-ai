@@ -1,5 +1,6 @@
 import {
   Bot,
+  Building2,
   Database,
   LayoutDashboard,
   LogOut,
@@ -15,6 +16,7 @@ const navItems = [
   { path: "/dashboard", label: "仪表盘", icon: LayoutDashboard },
   { path: "/knowledge", label: "知识库管理", icon: Database },
   { path: "/ai-settings", label: "模型设置", icon: Settings },
+  { path: "/company-settings", label: "企业设置", icon: Building2 },
   { path: "/chat", label: "AI 对话测试", icon: Bot },
   { path: "/conversations", label: "对话记录", icon: MessageSquareText },
   { path: "/leads", label: "客户线索", icon: UsersRound },

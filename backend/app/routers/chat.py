@@ -5,23 +5,17 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.deps import get_db, verify_token
-from app.models import Conversation, Lead
+from app.models import CompanySettings, Conversation, Lead
 from app.schemas import ChatRequest, ChatResponse
 from app.services.ai_service import generate_answer_with_meta
+from app.services.company_service import get_or_create_company_settings, public_contact_lines
 from app.services.intent_service import classify_scope, detect_intent
 from app.services.rag_service import build_context, retrieve_knowledge_result
 
 router = APIRouter(prefix="/api/chat", tags=["chat"], dependencies=[Depends(verify_token)])
 public_router = APIRouter(prefix="/api/public/chat", tags=["public-chat"])
 
-GREETING_REPLY = "您好，我是 SalesPilot AI 智销助手，可以为您介绍 AI 客服方案、价格、交付周期、适用行业和售后服务。请问您想了解哪方面？"
-IRRELEVANT_REPLY = "您好，我主要用于解答 AI 客服系统、价格方案、交付周期、适用行业和售后服务相关问题。您可以告诉我想了解的业务场景或需求。"
-UNSAFE_REPLY = "这个我不能协助。SalesPilot AI 的定位是帮助企业进行合规的客户接待、产品咨询和销售线索管理。如果您想优化正常销售话术或客服回复，我可以帮您整理更专业的表达。"
-OUT_OF_SCOPE_REPLY = "这个话题和 AI 销售客服关系不大，我就不展开了。您可以咨询价格、功能、企业微信或飞书接入、交付周期、适用行业和售后维护，我会更有帮助。"
-KNOWLEDGE_NOT_FOUND_REPLY = "这个问题目前在企业资料中没有找到明确说明。您可以留下联系方式，我们安排工作人员进一步确认后回复您。"
-CUSTOMER_REQUESTED_HUMAN_REPLY = "您的问题已记录，我们建议由工作人员进一步确认并跟进。我们会根据您填写的联系方式安排后续沟通。"
-SPECIAL_QUOTE_REPLY = "这类需求涉及定制报价或特殊合作条件，建议由工作人员结合团队规模、使用场景和接入范围进一步确认。您的问题已记录，后续可由人工跟进。"
-COMPLAINT_RISK_REPLY = "您的问题已记录。这类情况建议由工作人员进一步核实和处理，避免仅凭自动回复造成误解。"
+DEFAULT_SCOPE_HINT = "价格、功能、交付周期、适用场景、接入方式和售后维护"
 
 CUSTOMER_HUMAN_WORDS = ["转人工", "找人工", "人工客服", "真人客服", "联系销售", "找销售"]
 SPECIAL_QUOTE_WORDS = ["定制报价", "特殊折扣", "大批量", "500 人", "500人", "招标", "合同"]
@@ -56,9 +50,40 @@ SUBJECT_INTENT_WORDS = [
 ]
 
 
-def build_prompt(context: str, question: str) -> str:
-    return f"""你是 SalesPilot AI 智销助手，一个面向中小企业的 AI 销售客服顾问。
-你的核心任务不是做通用聊天，而是围绕 AI 客服系统、智能获客、知识库问答、客户意向识别、线索沉淀和多模型接入进行咨询回复。
+def company_display_name(company: CompanySettings) -> str:
+    return company.company_short_name or company.company_name or "SalesPilot AI"
+
+
+def company_scope(company: CompanySettings) -> str:
+    return (company.business_scope or DEFAULT_SCOPE_HINT).strip(" ，,。.")
+
+
+def company_contact_text(company: CompanySettings) -> str:
+    lines = public_contact_lines(company)
+    return "；".join(lines) if lines else "未配置"
+
+
+def build_company_context(company: CompanySettings) -> str:
+    return "\n".join(
+        [
+            f"企业名称：{company.company_name or 'SalesPilot AI'}",
+            f"企业简介：{company.company_intro or '面向中小企业的 AI 智能获客客服系统。'}",
+            f"客服名称：{company.customer_service_name or '智销助手'}",
+            f"业务范围：{company_scope(company)}",
+            f"工作时间：{company.business_hours or '未配置'}",
+            f"人工联系方式：{company_contact_text(company)}",
+            f"禁止回答内容：{company.forbidden_topics or '未配置'}",
+        ]
+    )
+
+
+def build_prompt(context: str, question: str, company: CompanySettings) -> str:
+    return f"""你是当前企业的 AI 客服顾问，不是通用聊天机器人。
+你必须使用当前企业身份回答，不要自称为 SalesPilot AI，除非当前企业名称就是 SalesPilot AI。
+当前服务企业：
+{build_company_context(company)}
+
+你的核心任务不是做通用聊天，而是围绕当前企业业务范围、智能获客、知识库问答、客户意向识别、线索沉淀和人工跟进进行咨询回复。
 你可以简短回应客户的普通问题，但必须自然引导回 AI 销售客服业务。
 回答时请遵循：
 1. 业务相关问题：结合知识库认真回答。
@@ -73,6 +98,8 @@ def build_prompt(context: str, question: str) -> str:
 10. 回答价格、交付周期、接入支持等明确事实时，必须保留知识库中的具体数值或结论，不要用其他通用价格或默认模板覆盖。
 11. 只有在提供的知识库上下文明确支持时，才能给出具体价格、交期、功能、接入和售后承诺。
 12. 如果知识库不足，请明确说明当前企业资料中没有找到可靠信息，并建议人工确认；不要将通用建议伪装成企业事实。
+13. 只围绕当前企业业务范围和有效知识库回答；不要编造企业名称、联系方式、业务能力或承诺。
+14. 如果客户问题命中禁止回答内容，不展开回答，建议由工作人员确认。
 
 知识库内容：
 {context}
@@ -83,23 +110,53 @@ def build_prompt(context: str, question: str) -> str:
 请生成销售客服回复。"""
 
 
-def build_sales_adjacent_reply(question: str, intent_level: str) -> str:
+def build_greeting_reply(company: CompanySettings) -> str:
+    return company.welcome_message or (
+        f"您好，我是{company_display_name(company)}的{company.customer_service_name or 'AI 客服'}，"
+        f"可以协助您了解{company_scope(company)}。请问您想先了解哪方面？"
+    )
+
+
+def build_irrelevant_reply(company: CompanySettings) -> str:
+    return f"您好，我主要负责{company_display_name(company)}相关咨询，例如{company_scope(company)}。您可以告诉我想了解的业务场景或需求。"
+
+
+def build_unsafe_reply(company: CompanySettings) -> str:
+    return f"这个我不能协助。{company_display_name(company)}的 AI 客服定位是帮助企业进行合规的客户接待、产品咨询和销售线索管理。如果您想优化正常客服或销售表达，我可以帮您整理更专业的说法。"
+
+
+def build_out_of_scope_reply(company: CompanySettings) -> str:
+    return f"这个话题和{company_display_name(company)}的业务咨询关系不大，我就不展开了。您可以咨询{company_scope(company)}，我会更有帮助。"
+
+
+def build_knowledge_not_found_reply(company: CompanySettings) -> str:
+    return company.handoff_message or "这个问题目前在企业资料中没有找到明确说明。您可以留下联系方式，我们安排工作人员进一步确认后回复您。"
+
+
+def append_contact_if_available(message: str, company: CompanySettings) -> str:
+    contact_lines = public_contact_lines(company)
+    if not contact_lines:
+        return message
+    return f"{message} 您也可以通过{ '；'.join(contact_lines) } 进一步联系人工客服。"
+
+
+def build_sales_adjacent_reply(question: str, intent_level: str, company: CompanySettings) -> str:
     if intent_level == "high":
-        return "这个问题很适合用 AI 销售客服来辅助解决。建议先统一常见咨询话术，再用 AI 自动接待、识别高意向客户并沉淀线索。如果您正在考虑搭建，我可以继续帮您评估适合的接入渠道、预算和上线周期。"
-    return "销售转化或客服效率低，通常可以先从两点优化：统一高频问题回复话术，并优先跟进高意向客户。SalesPilot AI 可以自动接待咨询、识别购买意向并沉淀线索，帮助销售把时间放在更值得跟进的客户上。"
+        return f"这个问题很适合结合{company_display_name(company)}的业务流程来评估。建议先统一常见咨询话术，再用 AI 自动接待、识别高意向客户并沉淀线索。如果您正在考虑落地，可以继续补充渠道、预算和上线时间。"
+    return f"销售转化或客服效率低，通常可以先从两点优化：统一高频问题回复话术，并优先跟进高意向客户。{company_display_name(company)}的 AI 客服可以围绕{company_scope(company)}进行自动接待和线索沉淀。"
 
 
-def build_general_chat_reply(question: str) -> str:
+def build_general_chat_reply(question: str, company: CompanySettings) -> str:
     text = question.strip().lower()
     if "人工智能" in text or "什么是ai" in text or "ai是什么" in text:
-        return "人工智能简单来说，就是让系统具备理解、生成、分类和辅助决策的能力。在客服场景里，AI 可以根据企业知识库自动回复客户问题，并识别购买意向。您是想了解 AI 客服的原理，还是想看它怎么落地到业务里？"
+        return f"人工智能简单来说，就是让系统具备理解、生成、分类和辅助决策的能力。在客服场景里，AI 可以根据企业知识库自动回复客户问题，并识别购买意向。您是想了解它怎么落地到{company_display_name(company)}的业务里吗？"
     if "吃什么" in text:
-        return "这个问题我可以简单聊一句：可以选方便补充能量、适合自己口味的餐食。不过我主要负责 AI 销售客服相关咨询，比如价格、接入方式、交付周期和适用行业。您想了解 AI 客服能帮企业做什么吗？"
+        return f"这个问题我可以简单聊一句：可以选方便补充能量、适合自己口味的餐食。不过我主要负责{company_display_name(company)}相关咨询，比如{company_scope(company)}。您想了解哪项业务吗？"
     if "写代码" in text:
-        return "我可以简单理解代码相关问题，但在这个系统里，我主要负责 AI 销售客服咨询。比如帮您了解知识库问答、客户意向识别、线索沉淀、多模型接入和部署方式。您想看哪个业务场景？"
+        return f"我可以简单理解代码相关问题，但在这个系统里，我主要负责{company_display_name(company)}的业务咨询。您可以问我{company_scope(company)}。"
     if "你是谁" in text:
-        return "我是 SalesPilot AI 智销助手，主要帮您了解 AI 销售客服系统的能力、价格、接入方式、交付周期和适用行业。您可以告诉我业务场景，我帮您判断是否适合落地。"
-    return "这个问题可以简单聊，但我主要负责 AI 销售客服相关咨询。您可以问我价格套餐、企业微信或飞书接入、知识库导入、交付周期、适用行业和售后维护。"
+        return f"我是{company.company_name or company_display_name(company)}的{company.customer_service_name or 'AI 客服'}，主要协助您了解{company_scope(company)}。您可以告诉我具体需求，我帮您判断下一步。"
+    return f"这个问题可以简单聊，但我主要负责{company_display_name(company)}相关咨询。您可以问我{company_scope(company)}。"
 
 
 def detect_handoff_reason(question: str) -> str | None:
@@ -115,14 +172,30 @@ def detect_handoff_reason(question: str) -> str | None:
     return None
 
 
-def handoff_reply(reason: str) -> str:
+def handoff_reply(reason: str, company: CompanySettings) -> str:
     if reason == "customer_requested_human":
-        return CUSTOMER_REQUESTED_HUMAN_REPLY
+        return append_contact_if_available(build_knowledge_not_found_reply(company), company)
     if reason in {"special_quote", "custom_requirement"}:
-        return SPECIAL_QUOTE_REPLY
+        return append_contact_if_available(
+            "这类需求涉及定制报价或特殊合作条件，建议由工作人员结合团队规模、使用场景和接入范围进一步确认。您的问题已记录，后续可由人工跟进。",
+            company,
+        )
     if reason == "complaint_or_risk":
-        return COMPLAINT_RISK_REPLY
-    return KNOWLEDGE_NOT_FOUND_REPLY
+        return append_contact_if_available("您的问题已记录。这类情况建议由工作人员进一步核实和处理，避免仅凭自动回复造成误解。", company)
+    return append_contact_if_available(build_knowledge_not_found_reply(company), company)
+
+
+def split_forbidden_topics(company: CompanySettings) -> list[str]:
+    return [
+        part.strip().lower()
+        for part in re.split(r"[,，、\n;；]+", company.forbidden_topics or "")
+        if part.strip()
+    ]
+
+
+def detect_forbidden_topic(question: str, company: CompanySettings) -> bool:
+    text = question.strip().lower()
+    return any(topic in text for topic in split_forbidden_topics(company))
 
 
 def has_unanswered_special_terms(question: str, matched_knowledge: list) -> bool:
@@ -182,6 +255,12 @@ def has_unanswered_subject_terms(question: str, matched_knowledge: list) -> bool
 
 
 async def handle_chat(payload: ChatRequest, db: Session) -> ChatResponse:
+    try:
+        company = get_or_create_company_settings(db)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="读取企业设置失败，请稍后重试") from exc
+
     retrieval = retrieve_knowledge_result(payload.question, db)
     matched_knowledge = retrieval.items
     scope = classify_scope(payload.question, has_related_knowledge=bool(matched_knowledge))
@@ -195,57 +274,64 @@ async def handle_chat(payload: ChatRequest, db: Session) -> ChatResponse:
     requires_handoff = False
     handoff_reason = detect_handoff_reason(payload.question)
 
-    if scope.scope_type == "unsafe":
+    if detect_forbidden_topic(payload.question, company):
         matched_knowledge = []
-        answer = UNSAFE_REPLY
+        requires_handoff = True
+        handoff_reason = "custom_requirement"
+        answer = append_contact_if_available(build_knowledge_not_found_reply(company), company)
+        answer_basis = "fallback"
+        retrieval_confidence = "none"
+    elif scope.scope_type == "unsafe":
+        matched_knowledge = []
+        answer = build_unsafe_reply(company)
         retrieval_confidence = "none"
     elif handoff_reason:
         requires_handoff = True
-        answer = handoff_reply(handoff_reason)
+        answer = handoff_reply(handoff_reason, company)
         answer_basis = "fallback"
     elif scope.scope_type == "out_of_scope":
         matched_knowledge = []
-        answer = OUT_OF_SCOPE_REPLY
+        answer = build_out_of_scope_reply(company)
         retrieval_confidence = "none"
     elif scope.scope_type == "sales_adjacent":
         matched_knowledge = []
-        answer = build_sales_adjacent_reply(payload.question, intent.intent_level)
+        answer = build_sales_adjacent_reply(payload.question, intent.intent_level, company)
         retrieval_confidence = "none"
     elif scope.scope_type == "general_chat" and intent.intent_type == "greeting":
         matched_knowledge = []
-        answer = GREETING_REPLY
+        answer = build_greeting_reply(company)
         retrieval_confidence = "none"
     elif scope.scope_type == "general_chat":
         matched_knowledge = []
-        answer = build_general_chat_reply(payload.question)
+        answer = build_general_chat_reply(payload.question, company)
         retrieval_confidence = "none"
     elif intent.intent_type == "irrelevant" and not matched_knowledge:
-        answer = IRRELEVANT_REPLY
+        answer = build_irrelevant_reply(company)
         retrieval_confidence = "none"
     elif scope.scope_type == "business_related" and (
         has_unanswered_special_terms(payload.question, matched_knowledge)
         or has_unanswered_subject_terms(payload.question, matched_knowledge)
     ):
         matched_knowledge = []
-        answer = KNOWLEDGE_NOT_FOUND_REPLY
+        answer = append_contact_if_available(build_knowledge_not_found_reply(company), company)
         answer_basis = "fallback"
         retrieval_confidence = "low"
         requires_handoff = True
         handoff_reason = "knowledge_not_found"
     elif not matched_knowledge:
-        answer = KNOWLEDGE_NOT_FOUND_REPLY
+        answer = append_contact_if_available(build_knowledge_not_found_reply(company), company)
         answer_basis = "fallback"
         retrieval_confidence = "none"
         if scope.scope_type == "business_related":
             requires_handoff = True
             handoff_reason = "knowledge_not_found"
     elif scope.scope_type == "business_related" and not reliable_knowledge:
-        answer = KNOWLEDGE_NOT_FOUND_REPLY
+        answer = append_contact_if_available(build_knowledge_not_found_reply(company), company)
         answer_basis = "fallback"
         requires_handoff = True
         handoff_reason = "knowledge_not_found"
     else:
-        prompt = build_prompt(build_context(matched_knowledge), payload.question)
+        prompt = build_prompt(build_context(matched_knowledge), payload.question, company)
         ai_result = await generate_answer_with_meta(prompt, db=db)
         answer = ai_result.answer
         ai_source = ai_result.ai_source

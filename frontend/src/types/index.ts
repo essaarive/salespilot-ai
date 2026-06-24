@@ -144,3 +144,29 @@ export interface DocumentDetail extends DocumentRecord {
   text_preview: string;
   knowledge_preview: KnowledgeItem[];
 }
+
+export interface PublicCompanySettings {
+  company_name: string;
+  company_short_name: string;
+  company_logo_url: string;
+  company_intro: string;
+  customer_service_name: string;
+  customer_service_avatar_url: string;
+  welcome_message: string;
+  brand_color: string;
+  business_scope: string;
+  human_contact_phone: string;
+  human_contact_wechat: string;
+  human_contact_email: string;
+  business_hours: string;
+  handoff_message: string;
+}
+
+export interface CompanySettings extends PublicCompanySettings {
+  id: number;
+  forbidden_topics: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type CompanySettingsPayload = Omit<CompanySettings, "id" | "created_at" | "updated_at">;

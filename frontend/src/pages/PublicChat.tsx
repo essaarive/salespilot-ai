@@ -1,17 +1,26 @@
 import { ArrowLeft, Bot, CheckCircle2, LockKeyhole, MessageCircle, Send, Sparkles } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
-import type { ChatResponse } from "../types";
-import { cleanAIText, formatHandoffReason, formatIntentLevel, formatIntentType } from "./helpers";
+import type { ChatResponse, PublicCompanySettings } from "../types";
+import {
+  cleanAIText,
+  defaultCompanySettings,
+  formatHandoffReason,
+  formatIntentLevel,
+  formatIntentType,
+  getCompanyDisplayName,
+  hasHumanContact,
+  normalizeBrandColor,
+} from "./helpers";
 
 const presetQuestions = [
-  "你们做 AI 客服多少钱？",
-  "多久可以上线？",
-  "能接企业微信吗？",
-  "后续可以维护吗？",
-  "适合哪些行业？",
+  "你们提供哪些服务？",
+  "怎么接入？",
+  "交付周期多久？",
+  "可以人工咨询吗？",
+  "怎么报价？",
 ];
 
 const consultationTopics = ["价格和套餐", "交付周期", "行业适配", "企业微信 / 飞书接入", "售后维护"];
@@ -30,6 +39,19 @@ export default function PublicChat() {
   const [result, setResult] = useState<ChatResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [company, setCompany] = useState<PublicCompanySettings>(defaultCompanySettings);
+  const [logoError, setLogoError] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    api.getPublicCompanySettings()
+      .then((settings) => setCompany({ ...defaultCompanySettings, ...settings }))
+      .catch(() => setCompany(defaultCompanySettings));
+  }, []);
+
+  const brandColor = normalizeBrandColor(company.brand_color);
+  const displayName = getCompanyDisplayName(company);
+  const contactConfigured = hasHumanContact(company);
 
   const validate = () => {
     if (!customerName.trim()) return "请输入您的姓名";
@@ -69,12 +91,21 @@ export default function PublicChat() {
       <header className="border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Link className="flex items-center gap-3" to="/">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <Bot size={21} />
-            </span>
+            {company.company_logo_url && !logoError ? (
+              <img
+                className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
+                src={company.company_logo_url}
+                alt={displayName}
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg text-white" style={{ backgroundColor: brandColor }}>
+                <Bot size={21} />
+              </span>
+            )}
             <span>
-              <span className="block text-base font-semibold text-slate-950">SalesPilot AI</span>
-              <span className="block text-xs text-slate-500">公开咨询</span>
+              <span className="block text-base font-semibold text-slate-950">{displayName}</span>
+              <span className="block text-xs text-slate-500">{company.customer_service_name || "公开咨询"}</span>
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -93,13 +124,13 @@ export default function PublicChat() {
       <main className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:px-8">
         <section className="space-y-6">
           <div>
-            <p className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3 py-1 text-sm font-medium text-brand-700 shadow-sm">
+            <p className="inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3 py-1 text-sm font-medium shadow-sm" style={{ color: brandColor }}>
               <Sparkles size={15} />
-              AI 销售客服在线
+              {company.customer_service_name || "AI 客服"}在线
             </p>
-            <h1 className="mt-5 text-3xl font-semibold tracking-normal text-slate-950 md:text-4xl">提交咨询，立即获得 AI 回复</h1>
+            <h1 className="mt-5 text-3xl font-semibold tracking-normal text-slate-950 md:text-4xl">{displayName}在线咨询</h1>
             <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600">
-              本页会模拟真实客户咨询入口：AI 基于知识库回复问题，识别客户意向，并将 high 意向自动沉淀到后台客户线索。
+              {company.welcome_message || defaultCompanySettings.welcome_message}
             </p>
             <p className="mt-2 max-w-2xl text-xs leading-6 text-slate-500">
               本页面会调用当前企业配置的大模型；如模型不可用，将使用演示回复完成流程。
@@ -157,7 +188,7 @@ export default function PublicChat() {
 
             {error && <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
 
-            <button className="btn-primary w-full py-3" type="submit" disabled={loading}>
+            <button className="btn-primary w-full py-3" type="submit" disabled={loading} style={{ backgroundColor: brandColor }}>
               <Send size={16} />
               {loading ? "AI 正在回复..." : "提交咨询"}
             </button>
@@ -205,10 +236,22 @@ export default function PublicChat() {
 
                 {result.requires_handoff && (
                   <p className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-                    您的问题已记录，我们建议由工作人员进一步确认并跟进。
+                    {company.handoff_message || "您的问题已记录，我们建议由工作人员进一步确认并跟进。"}
                     {customerContact.trim() ? " 我们会根据您填写的联系方式安排后续沟通。" : ""}
                     {result.handoff_reason ? `（${formatHandoffReason(result.handoff_reason)}）` : ""}
                   </p>
+                )}
+
+                {result.requires_handoff && contactConfigured && (
+                  <div className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">
+                    <p className="font-medium text-slate-950">人工联系方式</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {company.human_contact_phone && <p>电话：{company.human_contact_phone}</p>}
+                      {company.human_contact_wechat && <p>微信：{company.human_contact_wechat}</p>}
+                      {company.human_contact_email && <p>邮箱：{company.human_contact_email}</p>}
+                      {company.business_hours && <p>工作时间：{company.business_hours}</p>}
+                    </div>
+                  </div>
                 )}
 
                 <div>
@@ -226,9 +269,27 @@ export default function PublicChat() {
 
         <aside className="space-y-5">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold text-slate-950">你可以咨询</h2>
+            <div className="mb-4 flex items-center gap-3">
+              {company.customer_service_avatar_url && !avatarError ? (
+                <img
+                  className="h-10 w-10 rounded-full border object-cover"
+                  src={company.customer_service_avatar_url}
+                  alt={company.customer_service_name}
+                  onError={() => setAvatarError(true)}
+                />
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-full text-white" style={{ backgroundColor: brandColor }}>
+                  <Bot size={18} />
+                </span>
+              )}
+              <div>
+                <h2 className="font-semibold text-slate-950">{company.customer_service_name || "AI 客服"}</h2>
+                <p className="text-xs text-slate-500">{displayName}</p>
+              </div>
+            </div>
+            <h3 className="font-semibold text-slate-950">你可以咨询</h3>
             <ul className="mt-4 space-y-3">
-              {consultationTopics.map((item) => (
+              {(company.business_scope ? company.business_scope.split(/[，、,]/).map((item) => item.trim()).filter(Boolean).slice(0, 5) : consultationTopics).map((item) => (
                 <li key={item} className="flex items-center gap-2 text-sm text-slate-600">
                   <CheckCircle2 size={16} className="text-emerald-600" />
                   {item}

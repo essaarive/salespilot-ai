@@ -1,5 +1,10 @@
 import { ArrowRight, Bot, BrainCircuit, CheckCircle2, Database, LineChart, LockKeyhole, MessagesSquare, Route, UsersRound, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+
+import { api } from "../api/client";
+import type { PublicCompanySettings } from "../types";
+import { defaultCompanySettings, getCompanyDisplayName, normalizeBrandColor } from "./helpers";
 
 const features = [
   {
@@ -79,17 +84,40 @@ function SectionTitle({ eyebrow, title }: { eyebrow: string; title: string }) {
 }
 
 export default function PublicHome() {
+  const [company, setCompany] = useState<PublicCompanySettings>(defaultCompanySettings);
+  const [logoError, setLogoError] = useState(false);
+
+  useEffect(() => {
+    api.getPublicCompanySettings()
+      .then((settings) => setCompany({ ...defaultCompanySettings, ...settings }))
+      .catch(() => setCompany(defaultCompanySettings));
+  }, []);
+
+  const brandColor = normalizeBrandColor(company.brand_color);
+  const displayName = getCompanyDisplayName(company);
+  const heroTitle = `${displayName} AI 客服`;
+  const heroDescription = company.company_intro || company.business_scope || defaultCompanySettings.company_intro;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <Link className="flex items-center gap-3" to="/">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-600 text-white">
-              <Bot size={21} />
-            </span>
+            {company.company_logo_url && !logoError ? (
+              <img
+                className="h-10 w-10 rounded-lg border border-slate-200 object-cover"
+                src={company.company_logo_url}
+                alt={displayName}
+                onError={() => setLogoError(true)}
+              />
+            ) : (
+              <span className="flex h-10 w-10 items-center justify-center rounded-lg text-white" style={{ backgroundColor: brandColor }}>
+                <Bot size={21} />
+              </span>
+            )}
             <span>
-              <span className="block text-base font-semibold text-slate-950">SalesPilot AI</span>
-              <span className="block text-xs text-slate-500">智销助手</span>
+              <span className="block text-base font-semibold text-slate-950">{displayName}</span>
+              <span className="block text-xs text-slate-500">{company.customer_service_name || "AI 客服"}</span>
             </span>
           </Link>
           <nav className="hidden items-center gap-6 text-sm text-slate-600 lg:flex">
@@ -100,7 +128,7 @@ export default function PublicHome() {
             <a className="hover:text-brand-600" href="#faq">常见问题</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Link className="btn-primary px-3" to="/public-chat">免费咨询</Link>
+            <Link className="btn-primary px-3" to="/public-chat" style={{ backgroundColor: brandColor }}>免费咨询</Link>
             <Link className="btn-secondary px-3" to="/login">后台登录</Link>
           </div>
         </div>
@@ -110,18 +138,18 @@ export default function PublicHome() {
         <section className="overflow-hidden bg-gradient-to-br from-white via-brand-50 to-cyan-50">
           <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-16 sm:px-6 md:py-20 lg:grid-cols-[1fr_460px] lg:px-8">
             <div>
-              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3 py-1 text-sm font-medium text-brand-700 shadow-sm">
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-brand-100 bg-white px-3 py-1 text-sm font-medium shadow-sm" style={{ color: brandColor }}>
                 <LineChart size={15} />
-                AI 销售客服系统 MVP Demo
+                {displayName} · AI 客服
               </div>
               <h1 className="max-w-3xl text-4xl font-semibold leading-tight tracking-normal text-slate-950 md:text-5xl">
-                让 AI 自动接待客户，沉淀高意向销售线索
+                {heroTitle}
               </h1>
               <p className="mt-6 max-w-2xl text-base leading-8 text-slate-600 md:text-lg">
-                SalesPilot AI 帮助中小企业把产品资料、报价说明和 FAQ 接入 AI 客服流程，自动回复客户问题、识别购买意向，并将高意向客户沉淀到销售后台。
+                {heroDescription} 用企业资料自动接待咨询，识别高意向客户并沉淀给销售跟进。
               </p>
               <div className="mt-8 flex flex-wrap gap-3">
-                <Link className="btn-primary px-5 py-3" to="/public-chat">
+                <Link className="btn-primary px-5 py-3" to="/public-chat" style={{ backgroundColor: brandColor }}>
                   立即咨询
                   <ArrowRight size={17} />
                 </Link>
@@ -141,11 +169,11 @@ export default function PublicHome() {
                 <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">在线</span>
               </div>
               <div className="space-y-4">
-                <div className="ml-auto max-w-[86%] rounded-2xl rounded-tr-sm bg-brand-600 px-4 py-3 text-sm leading-6 text-white">
-                  你们做 AI 客服多少钱？多久能上线？
+                <div className="ml-auto max-w-[86%] rounded-2xl rounded-tr-sm px-4 py-3 text-sm leading-6 text-white" style={{ backgroundColor: brandColor }}>
+                  你们提供哪些服务？怎么联系人工？
                 </div>
                 <div className="max-w-[92%] rounded-2xl rounded-tl-sm bg-slate-100 px-4 py-3 text-sm leading-6 text-slate-700">
-                  基础版 800-3000 元，标准版 3000-8000 元。基础版通常 3-5 天交付，标准版通常 1-2 周交付。可以补充您的行业和需求，我帮您推荐合适方案。
+                  {company.welcome_message || defaultCompanySettings.welcome_message}
                 </div>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700">意向等级：high</span>
@@ -263,7 +291,7 @@ export default function PublicHome() {
       <footer className="border-t border-slate-200 bg-white px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-7xl flex-col gap-4 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="font-semibold text-slate-900">SalesPilot AI / 智销助手</p>
+            <p className="font-semibold text-slate-900">{company.company_name || displayName}</p>
             <p className="mt-1">AI 销售客服系统 MVP Demo</p>
           </div>
           <Link className="inline-flex items-center gap-2 font-medium text-brand-700 hover:text-brand-600" to="/login">

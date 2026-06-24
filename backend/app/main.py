@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import init_db
-from app.routers import ai_settings, auth, chat, conversations, dashboard, documents, knowledge, leads
+from app.database import SessionLocal, init_db
+from app.routers import ai_settings, auth, chat, company_settings, conversations, dashboard, documents, knowledge, leads
+from app.services.company_service import ensure_company_settings
 
 app = FastAPI(title="SalesPilot AI API", version="0.1.0")
 
@@ -18,6 +19,11 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
+    db = SessionLocal()
+    try:
+        ensure_company_settings(db)
+    finally:
+        db.close()
 
 
 @app.get("/api/health")
@@ -30,6 +36,7 @@ app.include_router(dashboard.router)
 app.include_router(knowledge.router)
 app.include_router(documents.router)
 app.include_router(ai_settings.router)
+app.include_router(company_settings.router)
 app.include_router(chat.router)
 app.include_router(chat.public_router)
 app.include_router(conversations.router)
