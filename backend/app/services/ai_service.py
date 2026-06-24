@@ -14,6 +14,16 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+SPECIFIC_BUSINESS_TERMS = {
+    "常规",
+    "基础咨询方案",
+    "基础方案",
+    "咨询方案",
+    "企业微信",
+    "企微",
+    "微信客服",
+}
+
 
 @dataclass(frozen=True)
 class RuntimeAIConfig:
@@ -35,27 +45,66 @@ class AIAnswer:
 
 def _parse_context_items(context: str) -> list[dict[str, str]]:
     items: list[dict[str, str]] = []
-    for block in [part.strip() for part in context.split("\n\n") if part.strip()]:
-        item = {"title": "", "category": "", "content": ""}
-        for line in block.splitlines():
-            if line.startswith("标题："):
-                item["title"] = line.replace("标题：", "", 1).strip()
-            elif line.startswith("分类："):
-                item["category"] = line.replace("分类：", "", 1).strip()
-            elif line.startswith("内容："):
-                item["content"] = line.replace("内容：", "", 1).strip()
-        if item["content"]:
-            items.append(item)
+    current: dict[str, str] | None = None
+    content_lines: list[str] = []
+
+    def flush_current() -> None:
+        nonlocal current, content_lines
+        if current is None:
+            return
+        current["content"] = "\n".join(line for line in content_lines if line.strip()).strip()
+        if current["content"]:
+            items.append(current)
+        current = None
+        content_lines = []
+
+    for line in context.splitlines():
+        if line.startswith("标题："):
+            flush_current()
+            current = {
+                "title": line.replace("标题：", "", 1).strip(),
+                "category": "",
+                "keywords": "",
+                "source_type": "",
+                "source_file_name": "",
+                "content": "",
+            }
+            continue
+        if current is None:
+            continue
+        if line.startswith("分类："):
+            current["category"] = line.replace("分类：", "", 1).strip()
+        elif line.startswith("关键词："):
+            current["keywords"] = line.replace("关键词：", "", 1).strip()
+        elif line.startswith("来源类型："):
+            current["source_type"] = line.replace("来源类型：", "", 1).strip()
+        elif line.startswith("来源文件："):
+            current["source_file_name"] = line.replace("来源文件：", "", 1).strip()
+        elif line.startswith("内容："):
+            content_lines.append(line.replace("内容：", "", 1).strip())
+        elif line.strip():
+            content_lines.append(line.strip())
+
+    flush_current()
     return items
 
 
 def _summarize_items(items: list[dict[str, str]], limit: int = 3) -> str:
     contents = []
     for item in items[:limit]:
-        content = item["content"].rstrip("。")
+        content = _clean_context_content(item["content"]).rstrip("。")
         if content and content not in contents:
             contents.append(content)
     return "；".join(contents)
+
+
+def _clean_context_content(content: str) -> str:
+    cleaned = re.sub(r"^来源文件：.*$", "", content, flags=re.MULTILINE)
+    cleaned = re.sub(r"^片段：\d+.*$", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"^正文：", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\n+", "，", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" ，")
+    return cleaned
 
 
 def sanitize_answer(text: str) -> str:
@@ -91,6 +140,149 @@ def _finish(answer: str) -> str:
     return sanitize_answer(answer)
 
 
+def _specific_terms_from_question(question: str) -> list[str]:
+    normalized = re.sub(r"[？?！!。，、\s]+", "", question.lower())
+    terms = [
+        match.group(1)
+        for match in re.finditer(r"([\u4e00-\u9fffA-Za-z0-9_-]{2,}?(?:版|型号|产品|方案|套餐))", normalized)
+    ]
+    terms.extend(term for term in SPECIFIC_BUSINESS_TERMS if term in normalized)
+    cleaned = normalized
+    for word in [
+        "多少钱",
+        "价格",
+        "报价",
+        "费用",
+        "套餐",
+        "收费",
+        "预算",
+        "能接",
+        "接入",
+        "支持",
+        "企业微信",
+        "企微",
+        "微信客服",
+        "微信",
+        "多久",
+        "上线",
+        "交付",
+        "部署",
+        "周期",
+        "几天",
+        "可以",
+        "能不能",
+        "是否",
+        "吗",
+    ]:
+        cleaned = cleaned.replace(word.lower(), "")
+    if len(cleaned) >= 3 or cleaned in SPECIFIC_BUSINESS_TERMS:
+        terms.append(cleaned)
+
+    unique_terms: list[str] = []
+    for term in terms:
+        if (len(term) >= 3 or term in SPECIFIC_BUSINESS_TERMS) and term not in unique_terms:
+            unique_terms.append(term)
+    return unique_terms
+
+
+def _prioritized_items(items: list[dict[str, str]], question: str) -> list[dict[str, str]]:
+    terms = _specific_terms_from_question(question)
+    if not terms:
+        return items
+
+    def rank(item: dict[str, str]) -> tuple[int, int]:
+        haystack = " ".join(
+            [
+                item.get("title", ""),
+                item.get("category", ""),
+                item.get("keywords", ""),
+                item.get("source_file_name", ""),
+                item.get("content", ""),
+            ]
+        ).lower()
+        matched = any(term in haystack for term in terms)
+        is_document = item.get("source_type") == "document"
+        return (1 if matched and is_document else 0, 1 if matched else 0)
+
+    return sorted(items, key=rank, reverse=True)
+
+
+def _item_matches_terms(item: dict[str, str], terms: list[str]) -> bool:
+    haystack = " ".join(
+        [
+            item.get("title", ""),
+            item.get("category", ""),
+            item.get("keywords", ""),
+            item.get("source_file_name", ""),
+            item.get("content", ""),
+        ]
+    ).lower()
+    return any(term in haystack for term in terms)
+
+
+def _question_subject(question: str) -> str:
+    terms = _specific_terms_from_question(question)
+    return terms[0] if terms else "该方案"
+
+
+def _extract_price(content: str) -> str:
+    compact = _clean_context_content(content)
+    patterns = [
+        r"(?:价格|报价|费用|收费)[：:\s]*(?:为|是)?\s*([^。；;\n，,]+?元)",
+        r"(?:[\u4e00-\u9fffA-Za-z0-9_-]{2,}(?:方案|套餐|版本|版))[：:\s]*(\d[\d,，]*(?:\s*[-~至]\s*\d[\d,，]*)?\s*元)",
+        r"([^。；;\n，,]*?\d[\d,，]*(?:\s*[-~至]\s*\d[\d,，]*)?\s*元[^。；;\n，,]*)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, compact)
+        if match:
+            return match.group(1).strip(" ：:，,。")
+    return ""
+
+
+def _extract_wechat_support(content: str) -> str:
+    compact = _clean_context_content(content)
+    match = re.search(r"(?:企业微信|企微|微信客服|微信)[^。；;\n，,]{0,20}(支持|可支持|可以|已支持|不支持)", compact)
+    if match:
+        return match.group(1)
+    if _contains_any(compact, ["企业微信", "企微", "微信客服", "微信"]) and "支持" in compact:
+        return "支持"
+    return ""
+
+
+def _extract_delivery_cycle(content: str) -> str:
+    compact = _clean_context_content(content)
+    patterns = [
+        r"(?:交付周期|上线周期|周期|交付|上线)[：:\s]*(?:为|是)?\s*([^。；;\n，,]+?(?:工作日|天|周|个月))",
+        r"(\d+\s*[-~至]\s*\d+\s*个?工作日)",
+        r"(\d+\s*[-~至]\s*\d+\s*天)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, compact)
+        if match:
+            return match.group(1).strip(" ：:，,。")
+    return ""
+
+
+def _explicit_facts(items: list[dict[str, str]], question: str) -> dict[str, str]:
+    terms = _specific_terms_from_question(question)
+    prioritized = _prioritized_items(items, question)
+    if terms:
+        prioritized = [item for item in prioritized if _item_matches_terms(item, terms)]
+
+    facts = {"price": "", "wechat": "", "delivery": ""}
+    for item in prioritized:
+        content = item.get("content", "")
+        if not facts["price"]:
+            facts["price"] = _extract_price(content)
+        if not facts["wechat"]:
+            facts["wechat"] = _extract_wechat_support(content)
+        if not facts["delivery"]:
+            facts["delivery"] = _extract_delivery_cycle(content)
+        if all(facts.values()):
+            break
+    return facts
+
+
 def _mock_answer(prompt: str) -> str:
     context_marker = "知识库内容："
     question_marker = "客户问题："
@@ -104,12 +296,15 @@ def _mock_answer(prompt: str) -> str:
         return "目前资料中没有相关信息"
 
     items = _parse_context_items(context)
+    items = _prioritized_items(items, question)
     summary = _summarize_items(items)
     if not summary:
         return "目前资料中没有相关信息。您也可以补充业务场景、使用渠道或想解决的问题，我再帮您判断。"
 
     guidance = "您可以补充行业、使用渠道、预算和期望上线时间，我可以进一步帮您判断适合的方案。"
     question_lower = question.lower()
+    subject = _question_subject(question_lower)
+    facts = _explicit_facts(items, question_lower)
 
     if _is_general_intro(question_lower):
         return _finish(
@@ -118,18 +313,31 @@ def _mock_answer(prompt: str) -> str:
         )
 
     if _contains_any(question_lower, ["价格", "报价", "多少钱", "费用", "套餐", "收费", "预算"]):
+        if facts["price"]:
+            extra = []
+            if facts["wechat"]:
+                extra.append(f"企业微信接入：{facts['wechat']}")
+            if facts["delivery"]:
+                extra.append(f"交付周期：{facts['delivery']}")
+            extra_text = f" 同一份资料还显示，{'；'.join(extra)}。" if extra else ""
+            return _finish(f"{subject}价格是 {facts['price']}。{extra_text}{guidance}")
         return _finish(
-            "可以的，基础版约 800-3000 元，标准版约 3000-8000 元，高级版约 8000-20000 元。"
-            "具体会根据知识库规模、接入渠道、私有化和维护需求评估。您可以补充行业、渠道和预算，我帮您判断适合版本。"
+            f"可以的，根据现有资料：{_summarize_items(items, limit=2)}。具体报价还要结合知识库规模、接入渠道、私有化和维护需求评估。"
+            "您可以补充行业、渠道和预算，我帮您判断适合版本。"
         )
 
     if _contains_any(question_lower, ["私有化", "私有部署", "本地部署", "内网"]):
         return _finish(f"私有化部署可以评估。{_summarize_items(items, limit=2)}。这类需求建议补充服务器环境、数据安全要求和是否需要内网模型。")
 
     if _contains_any(question_lower, ["多久", "上线", "交付", "部署", "周期", "几天"]):
+        if facts["delivery"]:
+            return _finish(f"{subject}交付周期是 {facts['delivery']}。如果您能补充接入渠道、资料规模和期望上线时间，我可以继续帮您判断实施优先级。")
         return _finish(f"上线周期主要取决于版本和定制范围。{_summarize_items(items, limit=2)}。如果您告诉我希望接入的渠道和资料规模，我可以帮您预估更贴近的交付时间。")
 
     if _contains_any(question_lower, ["企微", "企业微信", "微信客服", "微信"]):
+        if facts["wechat"]:
+            label = "企业微信接入" if subject in {"企业微信", "企微", "微信客服"} else f"{subject}企业微信接入"
+            return _finish(f"{label}：{facts['wechat']}。如果您已有企业微信客服流程，可以继续补充接待场景和线索流转方式，我帮您判断接入方案。")
         return _finish(f"企业微信方向可以评估接入。{_summarize_items(items, limit=2)}。建议您补充当前是否已有企业微信客服流程，以及希望 AI 负责接待还是辅助销售跟进。")
 
     if _contains_any(question_lower, ["飞书"]):

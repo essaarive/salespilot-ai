@@ -45,6 +45,42 @@ STOP_TOKENS = {
     "啊",
 }
 
+SPECIFIC_INTENT_WORDS = [
+    "多少钱",
+    "价格",
+    "报价",
+    "费用",
+    "套餐",
+    "收费",
+    "预算",
+    "能接",
+    "接入",
+    "支持",
+    "企业微信",
+    "企微",
+    "微信客服",
+    "微信",
+    "多久",
+    "上线",
+    "交付",
+    "部署",
+    "周期",
+    "几天",
+    "可以",
+    "能不能",
+    "是否",
+]
+
+SPECIFIC_BUSINESS_TERMS = {
+    "常规",
+    "基础咨询方案",
+    "基础方案",
+    "咨询方案",
+    "企业微信",
+    "企微",
+    "微信客服",
+}
+
 
 class KnowledgeRetriever:
     """Simple keyword retriever; replace this class with vector search later."""
@@ -69,11 +105,19 @@ class KnowledgeRetriever:
     def _score_item(self, question: str, terms: set[str], item: KnowledgeItem) -> int:
         haystack = " ".join([item.title, item.category, item.keywords, item.content]).lower()
         score = 0
+        specific_terms = self._specific_terms(question)
+        is_document = getattr(item, "source_type", "manual") == "document"
 
         if item.title.lower() in question:
             score += 10
         if item.category.lower() in question:
             score += 7
+
+        for term in specific_terms:
+            if term in haystack:
+                score += 28
+                if is_document:
+                    score += 90
 
         for keyword in self._split_keywords(item.keywords):
             keyword = keyword.lower()
@@ -114,6 +158,29 @@ class KnowledgeRetriever:
         tokens.extend([question[index : index + 2] for index in range(max(len(question) - 1, 0))])
         return [token for token in tokens if len(token) >= 2 and token not in STOP_TOKENS]
 
+    @staticmethod
+    def _specific_terms(question: str) -> set[str]:
+        """Extract product/model-like terms so uploaded docs can beat generic seeds."""
+        normalized = re.sub(r"[？?！!。，、\s]+", "", question.lower())
+        terms = set(
+            match.group(1)
+            for match in re.finditer(r"([\u4e00-\u9fffA-Za-z0-9_-]{2,}?(?:版|型号|产品|方案|套餐))", normalized)
+        )
+        terms.update(term for term in SPECIFIC_BUSINESS_TERMS if term in normalized)
+
+        cleaned = normalized
+        for word in SPECIFIC_INTENT_WORDS:
+            cleaned = cleaned.replace(word.lower(), "")
+        cleaned = cleaned.strip()
+        if (len(cleaned) >= 3 or cleaned in SPECIFIC_BUSINESS_TERMS) and cleaned not in STOP_TOKENS:
+            terms.add(cleaned)
+
+        return {
+            term
+            for term in terms
+            if (len(term) >= 3 or term in SPECIFIC_BUSINESS_TERMS) and term not in STOP_TOKENS
+        }
+
 
 retriever = KnowledgeRetriever()
 
@@ -124,6 +191,15 @@ def retrieve_knowledge(question: str, db: Session) -> list[KnowledgeItem]:
 
 def build_context(items: list[KnowledgeItem]) -> str:
     return "\n\n".join(
-        f"标题：{item.title}\n分类：{item.category}\n关键词：{item.keywords}\n内容：{item.content}"
+        "\n".join(
+            [
+                f"标题：{item.title}",
+                f"分类：{item.category}",
+                f"关键词：{item.keywords}",
+                f"来源类型：{getattr(item, 'source_type', 'manual')}",
+                f"来源文件：{getattr(item, 'source_file_name', '') or ''}",
+                f"内容：{item.content}",
+            ]
+        )
         for item in items
     )
