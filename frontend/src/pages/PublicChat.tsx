@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 
 import { api } from "../api/client";
 import type { ChatResponse } from "../types";
-import { cleanAIText, cleanDocumentSourceText, formatIntentLevel, formatIntentType } from "./helpers";
+import { cleanAIText, formatHandoffReason, formatIntentLevel, formatIntentType } from "./helpers";
 
 const presetQuestions = [
   "你们做 AI 客服多少钱？",
@@ -197,29 +197,27 @@ export default function PublicChat() {
                   </p>
                 )}
 
+                {result.answer_basis === "knowledge" && ["high", "medium"].includes(result.retrieval_confidence ?? "") && (
+                  <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                    以上回答基于企业知识库生成。
+                  </p>
+                )}
+
+                {result.requires_handoff && (
+                  <p className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+                    您的问题已记录，我们建议由工作人员进一步确认并跟进。
+                    {customerContact.trim() ? " 我们会根据您填写的联系方式安排后续沟通。" : ""}
+                    {result.handoff_reason ? `（${formatHandoffReason(result.handoff_reason)}）` : ""}
+                  </p>
+                )}
+
                 <div>
-                  <p className="mb-3 text-sm font-medium text-slate-700">命中的知识库内容</p>
-                  <div className="space-y-3">
-                    {result.matched_knowledge.length === 0 ? (
-                      <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500">未命中知识库内容</p>
-                    ) : (
-                      result.matched_knowledge.map((item) => (
-                        <article key={item.id} className="rounded-lg border border-slate-200 p-4">
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <h3 className="font-medium text-slate-950">
-                              {item.source_type === "document" ? "企业资料片段" : item.title}
-                            </h3>
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
-                              {item.source_type === "document" ? "企业资料" : item.category}
-                            </span>
-                          </div>
-                          <p className="whitespace-pre-line text-sm leading-6 text-slate-600">
-                            {item.source_type === "document" ? cleanDocumentSourceText(item.content) : item.content}
-                          </p>
-                        </article>
-                      ))
-                    )}
-                  </div>
+                  <p className="mb-3 text-sm font-medium text-slate-700">咨询状态</p>
+                  <p className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                    {result.answer_basis === "fallback"
+                      ? "当前企业资料中未找到足够可靠的信息，建议由人工进一步确认。"
+                      : "本次咨询已记录，企业可在后台查看完整对话和回答依据。"}
+                  </p>
                 </div>
               </div>
             )}

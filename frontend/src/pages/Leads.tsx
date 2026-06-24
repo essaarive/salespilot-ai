@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import DataTable from "../components/DataTable";
 import Modal from "../components/Modal";
 import type { Lead } from "../types";
-import { formatDateTime, formatIntentLevel, formatStatus, shortText } from "./helpers";
+import { formatDateTime, formatHandoffReason, formatIntentLevel, formatStatus, shortText } from "./helpers";
 
 type LeadForm = Omit<Lead, "id" | "created_at" | "updated_at">;
 
@@ -16,6 +16,8 @@ const emptyLead: LeadForm = {
   intent_level: "high",
   status: "new",
   remark: "",
+  requires_handoff: false,
+  handoff_reason: null,
 };
 
 export default function Leads() {
@@ -59,6 +61,8 @@ export default function Leads() {
       intent_level: lead.intent_level,
       status: lead.status,
       remark: lead.remark,
+      requires_handoff: Boolean(lead.requires_handoff),
+      handoff_reason: lead.handoff_reason ?? null,
     });
     setModalOpen(true);
   };
@@ -162,6 +166,18 @@ export default function Leads() {
             ),
           },
           { key: "status", title: "状态", render: (row) => <span className="rounded bg-slate-100 px-2 py-1 text-xs">{formatStatus(row.status)}</span> },
+          {
+            key: "handoff",
+            title: "人工跟进",
+            render: (row) =>
+              row.requires_handoff ? (
+                <span className="rounded bg-orange-50 px-2 py-1 text-xs font-medium text-orange-700">
+                  需人工：{formatHandoffReason(row.handoff_reason)}
+                </span>
+              ) : (
+                <span className="text-slate-400">-</span>
+              ),
+          },
           { key: "remark", title: "备注", render: (row) => shortText(row.remark || "-", 42) },
           { key: "created", title: "创建时间", render: (row) => formatDateTime(row.created_at) },
           {

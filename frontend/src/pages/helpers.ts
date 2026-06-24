@@ -1,4 +1,4 @@
-import type { DocumentParseStatus, IntentLevel, IntentType, ScopeType } from "../types";
+import type { AnswerBasis, DocumentParseStatus, HandoffReason, IntentLevel, IntentType, RetrievalConfidence, ScopeType } from "../types";
 
 export const intentTypeLabel: Record<IntentType, string> = {
   pricing: "询价",
@@ -40,6 +40,27 @@ export const documentStatusLabel: Record<DocumentParseStatus, string> = {
   failed: "解析失败",
 };
 
+export const retrievalConfidenceLabel: Record<RetrievalConfidence, string> = {
+  high: "高",
+  medium: "中",
+  low: "低",
+  none: "无",
+};
+
+export const answerBasisLabel: Record<AnswerBasis, string> = {
+  knowledge: "企业知识库",
+  general_guidance: "通用业务引导",
+  fallback: "人工兜底",
+};
+
+export const handoffReasonLabel: Record<HandoffReason, string> = {
+  customer_requested_human: "客户要求人工",
+  knowledge_not_found: "资料未找到可靠答案",
+  special_quote: "特殊报价",
+  custom_requirement: "复杂定制需求",
+  complaint_or_risk: "投诉或售后风险",
+};
+
 export function formatIntentType(value: string) {
   return intentTypeLabel[value as IntentType] ?? (value || "未知");
 }
@@ -58,6 +79,18 @@ export function formatScopeType(value?: string) {
 
 export function formatDocumentStatus(value: string) {
   return documentStatusLabel[value as DocumentParseStatus] ?? (value || "未知");
+}
+
+export function formatRetrievalConfidence(value?: string) {
+  return value ? retrievalConfidenceLabel[value as RetrievalConfidence] ?? value : "未知";
+}
+
+export function formatAnswerBasis(value?: string) {
+  return value ? answerBasisLabel[value as AnswerBasis] ?? value : "未知";
+}
+
+export function formatHandoffReason(value?: string | null) {
+  return value ? handoffReasonLabel[value as HandoffReason] ?? value : "需人工确认";
 }
 
 export function formatFileSize(size: number) {

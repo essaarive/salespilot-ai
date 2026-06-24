@@ -139,9 +139,10 @@ export const api = {
       body: JSON.stringify(payload),
     }),
   deleteKnowledge: (id: number) => request<{ message: string }>(`/api/knowledge/${id}`, { method: "DELETE" }),
-  listDocuments: (params?: { status?: string; keyword?: string }) => {
+  listDocuments: (params?: { status?: string; enabled?: string; keyword?: string }) => {
     const search = new URLSearchParams();
     if (params?.status) search.set("status", params.status);
+    if (params?.enabled) search.set("enabled", params.enabled);
     if (params?.keyword) search.set("keyword", params.keyword);
     const query = search.toString();
     return request<DocumentRecord[]>(`/api/documents${query ? `?${query}` : ""}`);
@@ -152,6 +153,11 @@ export const api = {
     return uploadRequest<DocumentDetail>("/api/documents/upload", formData);
   },
   getDocument: (id: number) => request<DocumentDetail>(`/api/documents/${id}`),
+  toggleDocumentEnabled: (id: number, is_enabled: boolean) =>
+    request<DocumentDetail>(`/api/documents/${id}/toggle-enabled`, {
+      method: "POST",
+      body: JSON.stringify({ is_enabled }),
+    }),
   deleteDocument: (id: number) => request<{ message: string }>(`/api/documents/${id}`, { method: "DELETE" }),
   chat: (payload: { customer_name: string; customer_contact: string; question: string }) =>
     request<ChatResponse>("/api/chat", {

@@ -1,4 +1,4 @@
-import { Edit3, Eye, FileUp, Plus, Trash2 } from "lucide-react";
+import { Edit3, Eye, FileUp, Plus, Power, Trash2 } from "lucide-react";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { api } from "../api/client";
@@ -50,11 +50,13 @@ export default function Knowledge() {
 
   const [documents, setDocuments] = useState<DocumentRecord[]>([]);
   const [documentStatus, setDocumentStatus] = useState("");
+  const [documentEnabled, setDocumentEnabled] = useState("");
   const [documentKeyword, setDocumentKeyword] = useState("");
   const [documentsLoading, setDocumentsLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [documentError, setDocumentError] = useState("");
   const [documentDeletingId, setDocumentDeletingId] = useState<number | null>(null);
+  const [documentTogglingId, setDocumentTogglingId] = useState<number | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<DocumentDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -96,7 +98,13 @@ export default function Knowledge() {
   const loadDocuments = async () => {
     setDocumentError("");
     try {
-      setDocuments(await api.listDocuments({ status: documentStatus, keyword: documentKeyword.trim() }));
+      setDocuments(
+        await api.listDocuments({
+          status: documentStatus,
+          enabled: documentEnabled,
+          keyword: documentKeyword.trim(),
+        }),
+      );
     } catch (err) {
       setDocumentError(err instanceof Error ? err.message : "加载文件失败");
     } finally {
@@ -110,7 +118,7 @@ export default function Knowledge() {
 
   useEffect(() => {
     loadDocuments();
-  }, [documentStatus]);
+  }, [documentStatus, documentEnabled]);
 
   const openCreate = () => {
     setEditing(null);
@@ -206,6 +214,23 @@ export default function Knowledge() {
       setDocumentError(err instanceof Error ? err.message : "删除文件失败");
     } finally {
       setDocumentDeletingId(null);
+    }
+  };
+
+  const handleToggleDocument = async (document: DocumentRecord) => {
+    const nextEnabled = !document.is_enabled;
+    if (!nextEnabled && !window.confirm(`确认停用「${document.original_filename}」吗？停用后其知识片段将不再参与 AI 回复。`)) {
+      return;
+    }
+    setDocumentError("");
+    setDocumentTogglingId(document.id);
+    try {
+      await api.toggleDocumentEnabled(document.id, nextEnabled);
+      await Promise.all([loadDocuments(), loadData()]);
+    } catch (err) {
+      setDocumentError(err instanceof Error ? err.message : "更新启用状态失败");
+    } finally {
+      setDocumentTogglingId(null);
     }
   };
 
@@ -365,6 +390,15 @@ export default function Knowledge() {
               <option value="success">success</option>
               <option value="failed">failed</option>
             </select>
+            <select
+              className="field max-w-xs"
+              value={documentEnabled}
+              onChange={(event) => setDocumentEnabled(event.target.value)}
+            >
+              <option value="">全部启用状态</option>
+              <option value="true">启用</option>
+              <option value="false">已停用</option>
+            </select>
             <button className="btn-secondary" type="button" onClick={loadDocuments} disabled={documentsLoading}>
               查询
             </button>
@@ -391,6 +425,20 @@ export default function Knowledge() {
                     </span>
                   ),
                 },
+                {
+                  key: "enabled",
+                  title: "启用状态",
+                  render: (row) => (
+                    <span
+                      className={[
+                        "rounded px-2 py-1 text-xs",
+                        row.is_enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
+                      ].join(" ")}
+                    >
+                      {row.is_enabled ? "启用" : "已停用"}
+                    </span>
+                  ),
+                },
                 { key: "length", title: "文本长度", render: (row) => row.extracted_text_length || "-" },
                 { key: "chunks", title: "知识片段", render: (row) => row.chunk_count || "-" },
                 { key: "created", title: "上传时间", render: (row) => formatDateTime(row.created_at) },
@@ -401,6 +449,15 @@ export default function Knowledge() {
                     <div className="flex gap-2">
                       <button className="btn-secondary px-2" type="button" onClick={() => handleViewDocument(row)} title="查看详情">
                         <Eye size={15} />
+                      </button>
+                      <button
+                        className="btn-secondary px-2"
+                        type="button"
+                        onClick={() => handleToggleDocument(row)}
+                        disabled={documentTogglingId === row.id || row.parse_status !== "success"}
+                        title={row.is_enabled ? "停用" : "启用"}
+                      >
+                        {documentTogglingId === row.id ? "处理中" : <Power size={15} />}
                       </button>
                       <button
                         className="btn-danger px-2"
@@ -478,6 +535,17 @@ export default function Knowledge() {
                 <span className="text-slate-500">解析状态：</span>
                 <span className={["rounded px-2 py-1 text-xs", documentStatusClass(selectedDocument.parse_status)].join(" ")}>
                   {formatDocumentStatus(selectedDocument.parse_status)}
+                </span>
+              </p>
+              <p>
+                <span className="text-slate-500">启用状态：</span>
+                <span
+                  className={[
+                    "rounded px-2 py-1 text-xs",
+                    selectedDocument.is_enabled ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600",
+                  ].join(" ")}
+                >
+                  {selectedDocument.is_enabled ? "启用" : "已停用"}
                 </span>
               </p>
               <p><span className="text-slate-500">知识片段：</span>{selectedDocument.chunk_count}</p>

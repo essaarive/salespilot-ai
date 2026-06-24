@@ -45,6 +45,7 @@ class Document(Base):
     parse_error = Column(Text, default="", nullable=False)
     extracted_text_length = Column(Integer, default=0, nullable=False)
     chunk_count = Column(Integer, default=0, nullable=False)
+    is_enabled = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=now_utc_naive, nullable=False)
     updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 
@@ -73,6 +74,8 @@ class Lead(Base):
     intent_level = Column(String(30), default="high", nullable=False)
     status = Column(String(50), default="new", nullable=False)
     remark = Column(Text, default="", nullable=False)
+    requires_handoff = Column(Boolean, default=False, nullable=False)
+    handoff_reason = Column(String(80), nullable=True)
     created_at = Column(DateTime, default=now_utc_naive, nullable=False)
     updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 

@@ -8,6 +8,15 @@ from app.core.timezone import format_datetime
 IntentType = Literal["pricing", "cooperation", "product", "delivery", "after_sales", "greeting", "irrelevant"]
 IntentLevel = Literal["high", "medium", "low"]
 ScopeType = Literal["business_related", "sales_adjacent", "general_chat", "out_of_scope", "unsafe"]
+RetrievalConfidence = Literal["high", "medium", "low", "none"]
+AnswerBasis = Literal["knowledge", "general_guidance", "fallback"]
+HandoffReason = Literal[
+    "customer_requested_human",
+    "knowledge_not_found",
+    "special_quote",
+    "custom_requirement",
+    "complaint_or_risk",
+]
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]
 AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "volcengine_ark", "custom"]
@@ -75,6 +84,10 @@ class ChatResponse(BaseModel):
     provider: Optional[str] = None
     model: Optional[str] = None
     scope_type: Optional[ScopeType] = None
+    retrieval_confidence: Optional[RetrievalConfidence] = None
+    answer_basis: Optional[AnswerBasis] = None
+    requires_handoff: bool = False
+    handoff_reason: Optional[HandoffReason] = None
 
 
 class ConversationOut(DateTimeSerializedModel):
@@ -98,6 +111,8 @@ class LeadBase(BaseModel):
     intent_level: IntentLevel = "high"
     status: LeadStatus = "new"
     remark: str = ""
+    requires_handoff: bool = False
+    handoff_reason: Optional[HandoffReason] = None
 
 
 class LeadCreate(LeadBase):
@@ -111,10 +126,14 @@ class LeadUpdate(BaseModel):
     intent_level: Optional[IntentLevel] = None
     status: Optional[LeadStatus] = None
     remark: Optional[str] = None
+    requires_handoff: Optional[bool] = None
+    handoff_reason: Optional[HandoffReason] = None
 
     @model_validator(mode="after")
     def reject_explicit_nulls(self) -> "LeadUpdate":
         for field_name in self.model_fields_set:
+            if field_name == "handoff_reason":
+                continue
             if getattr(self, field_name) is None:
                 raise ValueError(f"{field_name} cannot be null")
         return self
@@ -153,6 +172,7 @@ class DocumentOut(DateTimeSerializedModel):
     parse_error: str = ""
     extracted_text_length: int
     chunk_count: int
+    is_enabled: bool = True
     created_at: datetime
     updated_at: datetime
 
@@ -160,6 +180,10 @@ class DocumentOut(DateTimeSerializedModel):
 class DocumentDetail(DocumentOut):
     text_preview: str = ""
     knowledge_preview: List[KnowledgeOut] = []
+
+
+class DocumentToggleRequest(BaseModel):
+    is_enabled: bool
 
 
 class AIModelConfigBase(BaseModel):

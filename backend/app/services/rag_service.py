@@ -3,13 +3,24 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import KnowledgeItem
+from app.models import Document, KnowledgeItem
 
 
 @dataclass
 class ScoredKnowledge:
     item: KnowledgeItem
     score: int
+    strong_match: bool = False
+    explicit_fact_match: bool = False
+
+
+@dataclass(frozen=True)
+class RetrievalResult:
+    items: list[KnowledgeItem]
+    top_score: int
+    retrieval_confidence: str
+    has_reliable_knowledge: bool
+    scored_items: list[ScoredKnowledge]
 
 
 SYNONYM_GROUPS = [
@@ -69,6 +80,7 @@ SPECIFIC_INTENT_WORDS = [
     "可以",
     "能不能",
     "是否",
+    "吗",
 ]
 
 SPECIFIC_BUSINESS_TERMS = {
@@ -81,32 +93,79 @@ SPECIFIC_BUSINESS_TERMS = {
     "微信客服",
 }
 
+EXPLICIT_FACT_WORDS = {
+    "价格",
+    "报价",
+    "费用",
+    "收费",
+    "元",
+    "交付周期",
+    "上线周期",
+    "工作日",
+    "企业微信接入",
+    "支持",
+    "不支持",
+    "私有化",
+    "售后",
+}
+
 
 class KnowledgeRetriever:
     """Simple keyword retriever; replace this class with vector search later."""
 
     def retrieve(self, question: str, db: Session, limit: int = 5) -> list[KnowledgeItem]:
+        return self.retrieve_with_meta(question=question, db=db, limit=limit).items
+
+    def retrieve_with_meta(self, question: str, db: Session, limit: int = 5) -> RetrievalResult:
         normalized_question = question.strip().lower()
         if not normalized_question:
-            return []
+            return RetrievalResult(
+                items=[],
+                top_score=0,
+                retrieval_confidence="none",
+                has_reliable_knowledge=False,
+                scored_items=[],
+            )
 
         terms = self._expanded_terms(normalized_question)
+        disabled_document_ids = {
+            document_id
+            for (document_id,) in db.query(Document.id)
+            .filter(Document.is_enabled.is_(False))
+            .all()
+        }
         items = db.query(KnowledgeItem).filter(KnowledgeItem.status == "active").all()
         scored: list[ScoredKnowledge] = []
 
         for item in items:
-            score = self._score_item(normalized_question, terms, item)
+            if (
+                getattr(item, "source_type", "manual") == "document"
+                and item.source_document_id in disabled_document_ids
+            ):
+                continue
+            scored_item = self._score_item(normalized_question, terms, item)
+            score = scored_item.score
             if score >= 4:
-                scored.append(ScoredKnowledge(item=item, score=score))
+                scored.append(scored_item)
 
         scored.sort(key=lambda entry: entry.score, reverse=True)
-        return [entry.item for entry in scored[:limit]]
+        selected = scored[:limit]
+        confidence = self._classify_confidence(selected)
+        return RetrievalResult(
+            items=[entry.item for entry in selected],
+            top_score=selected[0].score if selected else 0,
+            retrieval_confidence=confidence,
+            has_reliable_knowledge=confidence in {"high", "medium"},
+            scored_items=selected,
+        )
 
-    def _score_item(self, question: str, terms: set[str], item: KnowledgeItem) -> int:
+    def _score_item(self, question: str, terms: set[str], item: KnowledgeItem) -> ScoredKnowledge:
         haystack = " ".join([item.title, item.category, item.keywords, item.content]).lower()
+        compact_haystack = re.sub(r"\s+", "", haystack)
         score = 0
         specific_terms = self._specific_terms(question)
         is_document = getattr(item, "source_type", "manual") == "document"
+        strong_match = False
 
         if item.title.lower() in question:
             score += 10
@@ -114,7 +173,8 @@ class KnowledgeRetriever:
             score += 7
 
         for term in specific_terms:
-            if term in haystack:
+            if term in haystack or term in compact_haystack:
+                strong_match = True
                 score += 28
                 if is_document:
                     score += 90
@@ -134,7 +194,39 @@ class KnowledgeRetriever:
             if token and token in haystack:
                 score += 2
 
-        return score
+        explicit_fact_match = strong_match and self._has_explicit_fact(haystack)
+        if explicit_fact_match:
+            score += 18 if is_document else 8
+
+        return ScoredKnowledge(
+            item=item,
+            score=score,
+            strong_match=strong_match,
+            explicit_fact_match=explicit_fact_match,
+        )
+
+    @staticmethod
+    def _classify_confidence(scored: list[ScoredKnowledge]) -> str:
+        if not scored:
+            return "none"
+
+        top = scored[0]
+        if top.explicit_fact_match and top.score >= 42:
+            return "high"
+        if top.strong_match and getattr(top.item, "source_type", "manual") == "document" and top.score >= 40:
+            return "high"
+        if top.score >= 36 and (
+            top.explicit_fact_match
+            or any(word in top.item.content for word in EXPLICIT_FACT_WORDS)
+        ):
+            return "high"
+        if top.score >= 22:
+            return "medium"
+        return "low"
+
+    @staticmethod
+    def _has_explicit_fact(haystack: str) -> bool:
+        return any(word.lower() in haystack for word in EXPLICIT_FACT_WORDS)
 
     @staticmethod
     def _expanded_terms(question: str) -> set[str]:
@@ -187,6 +279,10 @@ retriever = KnowledgeRetriever()
 
 def retrieve_knowledge(question: str, db: Session) -> list[KnowledgeItem]:
     return retriever.retrieve(question=question, db=db)
+
+
+def retrieve_knowledge_result(question: str, db: Session) -> RetrievalResult:
+    return retriever.retrieve_with_meta(question=question, db=db)
 
 
 def build_context(items: list[KnowledgeItem]) -> str:

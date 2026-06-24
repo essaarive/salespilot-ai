@@ -39,6 +39,8 @@ export interface Lead {
   intent_level: IntentLevel;
   status: string;
   remark: string;
+  requires_handoff?: boolean;
+  handoff_reason?: HandoffReason | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +56,14 @@ export type IntentType =
 
 export type IntentLevel = "high" | "medium" | "low";
 export type ScopeType = "business_related" | "sales_adjacent" | "general_chat" | "out_of_scope" | "unsafe";
+export type RetrievalConfidence = "high" | "medium" | "low" | "none";
+export type AnswerBasis = "knowledge" | "general_guidance" | "fallback";
+export type HandoffReason =
+  | "customer_requested_human"
+  | "knowledge_not_found"
+  | "special_quote"
+  | "custom_requirement"
+  | "complaint_or_risk";
 
 export interface DashboardSummary {
   knowledge_count: number;
@@ -72,6 +82,10 @@ export interface ChatResponse {
   provider?: string;
   model?: string;
   scope_type?: ScopeType;
+  retrieval_confidence?: RetrievalConfidence;
+  answer_basis?: AnswerBasis;
+  requires_handoff?: boolean;
+  handoff_reason?: HandoffReason | null;
 }
 
 export type AIProvider = "deepseek" | "openai" | "qwen" | "zhipu" | "ollama" | "volcengine_ark" | "custom";
@@ -121,6 +135,7 @@ export interface DocumentRecord {
   parse_error: string;
   extracted_text_length: number;
   chunk_count: number;
+  is_enabled: boolean;
   created_at: string;
   updated_at: string;
 }

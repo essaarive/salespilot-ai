@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db, verify_token
 from app.models import Document, KnowledgeItem
-from app.schemas import DocumentDetail, DocumentOut, MessageResponse
+from app.schemas import DocumentDetail, DocumentOut, DocumentToggleRequest, MessageResponse
 from app.services.document_chunker import build_chunk_content, chunk_text
 from app.services.document_parser import DocumentParseError, parse_document
 
@@ -113,12 +113,15 @@ def build_document_detail(document: Document, db: Session) -> DocumentDetail:
 @router.get("", response_model=list[DocumentOut])
 def list_documents(
     status: str | None = Query(default=None),
+    enabled: bool | None = Query(default=None),
     keyword: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> list[Document]:
     query = db.query(Document).order_by(Document.created_at.desc())
     if status:
         query = query.filter(Document.parse_status == status)
+    if enabled is not None:
+        query = query.filter(Document.is_enabled.is_(enabled))
     if keyword:
         like = f"%{keyword.strip()}%"
         query = query.filter(Document.original_filename.ilike(like))
@@ -224,6 +227,27 @@ def get_document(document_id: int, db: Session = Depends(get_db)) -> DocumentDet
     document = db.get(Document, document_id)
     if not document:
         raise HTTPException(status_code=404, detail="文件不存在")
+    return build_document_detail(document, db)
+
+
+@router.post("/{document_id}/toggle-enabled", response_model=DocumentDetail)
+def toggle_document_enabled(
+    document_id: int,
+    payload: DocumentToggleRequest,
+    db: Session = Depends(get_db),
+) -> DocumentDetail:
+    document = db.get(Document, document_id)
+    if not document:
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    try:
+        document.is_enabled = payload.is_enabled
+        db.commit()
+        db.refresh(document)
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="更新文件启用状态失败，请稍后重试") from exc
+
     return build_document_detail(document, db)
 
 

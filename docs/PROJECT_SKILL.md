@@ -34,6 +34,7 @@ SalesPilot AI / 智销助手
 - 企业后台管理系统
 - 知识库管理
 - 文件知识库上传
+- 回答可信度与人工兜底
 - AI 销售客服问答
 - 简化 RAG 检索
 - 客户意向识别
@@ -185,6 +186,7 @@ DELETE /api/knowledge/{id}
 GET /api/documents
 POST /api/documents/upload
 GET /api/documents/{id}
+POST /api/documents/{id}/toggle-enabled
 DELETE /api/documents/{id}
 ```
 
@@ -467,6 +469,7 @@ Docker volume：salespilot_uploads -> /app/storage/uploads
 - 上传目录不作为公开静态资源目录。
 - 上传文件不能进入 Git，`storage/uploads/*` 默认忽略，仅保留 `.gitkeep`。
 - 文件知识片段复用 `knowledge_items`，`source_type=document`。
+- 文件可通过 `documents.is_enabled` 停用；停用后文件记录保留，但对应 `source_document_id` 的知识片段不参与 RAG。
 - 删除 documents 记录时必须同步删除关联知识片段和本地原文件。
 
 解析策略：
@@ -535,6 +538,10 @@ ai_source: model | mock
 provider
 model
 scope_type
+retrieval_confidence: high | medium | low | none
+answer_basis: knowledge | general_guidance | fallback
+requires_handoff
+handoff_reason
 ```
 
 后台 Chat 页面显示：
@@ -543,9 +550,47 @@ scope_type
 回复来源：真实模型 / mock 演示
 当前模型：provider / model
 API Key：已配置 / 未配置
+回答依据：企业知识库 / 通用业务引导 / 人工兜底
+匹配度：高 / 中 / 低 / 无
 ```
 
-公开咨询页不暴露内部模型细节。
+公开咨询页不暴露内部模型细节、文件名和片段编号。
+
+## 当前回答可信度与人工兜底
+
+`retrieval_confidence` 用于表达当前关键词 RAG 的命中可靠度：
+
+```text
+high    命中具体产品名、方案名、价格、交期、接入能力等明确事实，或文件知识强匹配
+medium  命中相关业务资料，但不宜做过度精确承诺
+low     只有弱关键词匹配，不足以支撑企业事实
+none    没有可靠知识项
+```
+
+`answer_basis` 取值：
+
+```text
+knowledge          回答主要基于企业知识库
+general_guidance   通用业务引导，不应视为企业事实
+fallback           资料不足、人工兜底或风险场景回复
+```
+
+人工跟进触发：
+
+```text
+customer_requested_human  客户要求转人工、找销售、人工客服
+knowledge_not_found       业务相关问题低置信度或无可靠资料
+special_quote             定制报价、合同、招标、大批量、特殊折扣
+custom_requirement        代理合作、项目合作、复杂定制
+complaint_or_risk         投诉、退款、赔偿、纠纷、严重问题
+```
+
+规则：
+
+- `business_related` 且低置信度 / 无命中时，不编造价格、交期、接入能力等企业事实。
+- `requires_handoff=true` 且客户填写姓名或联系方式时，即使不是 high 意向，也沉淀线索。
+- 普通闲聊、无关问题和风险拒答不应因为弱关键词自动生成 high 线索。
+- 当前可信度是 Demo 级关键词规则，不等同于生产级事实校验。
 
 ## 真实模型 API 验收流程
 
@@ -650,6 +695,7 @@ v0.4.3：模型 API 接入体验与火山方舟支持优化
 v0.4.4：问题范围识别与对话边界优化
 v0.4.5：系统时间生成与展示时区统一
 v0.6.0：企业文件知识库上传版
+v0.7.0：回答可信度、人工兜底与文件知识状态管理
 ```
 
 ## 推荐演示流程
@@ -700,7 +746,7 @@ docs/screenshots/ai-settings.png
 
 ```text
 v0.6.0：企业文件知识库上传版
-v0.7.0：向量检索 / Chroma / FAISS
-v0.8.0：JWT + bcrypt/passlib + RBAC
-v0.9.0：Playwright E2E 测试与自动截图
+v0.8.0：向量检索 / Chroma / FAISS
+v0.9.0：JWT + bcrypt/passlib + RBAC
+v1.0.0：Playwright E2E 测试与自动截图
 ```

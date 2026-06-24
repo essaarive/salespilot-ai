@@ -3,7 +3,17 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { api } from "../api/client";
 import type { AIModelConfig, ChatResponse } from "../types";
-import { cleanAIText, cleanDocumentSourceText, formatIntentLevel, formatIntentType, formatScopeType } from "./helpers";
+import {
+  cleanAIText,
+  cleanDocumentSourceText,
+  formatAnswerBasis,
+  formatHandoffReason,
+  formatIntentLevel,
+  formatIntentType,
+  formatRetrievalConfidence,
+  formatScopeType,
+  shortText,
+} from "./helpers";
 
 const presetQuestions = [
   "你们做 AI 客服多少钱？",
@@ -157,32 +167,56 @@ export default function Chat() {
                     {result.provider && result.model ? `（${providerLabels[result.provider] ?? result.provider} / ${result.model}）` : ""}
                   </span>
                 )}
+                {result.answer_basis && (
+                  <span className="rounded bg-indigo-50 px-3 py-1.5 text-sm text-indigo-700">
+                    回答依据：{formatAnswerBasis(result.answer_basis)}
+                  </span>
+                )}
+                {result.retrieval_confidence && (
+                  <span className="rounded bg-violet-50 px-3 py-1.5 text-sm text-violet-700">
+                    匹配度：{formatRetrievalConfidence(result.retrieval_confidence)}
+                  </span>
+                )}
               </div>
+              {result.requires_handoff && (
+                <p className="rounded-md border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+                  建议人工跟进：{formatHandoffReason(result.handoff_reason)}
+                </p>
+              )}
               {result.intent_level === "high" && (
                 <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   已自动沉淀为客户线索，可前往客户线索页面查看跟进。
                 </p>
               )}
               <div>
-                <p className="mb-3 text-sm font-medium text-slate-700">命中的知识库内容</p>
+                <p className="mb-3 text-sm font-medium text-slate-700">回答依据</p>
                 <div className="space-y-3">
                   {result.matched_knowledge.length === 0 ? (
-                    <p className="text-sm text-slate-500">未命中知识库内容</p>
+                    <p className="text-sm text-slate-500">未命中可靠企业知识，建议人工确认。</p>
                   ) : (
                     result.matched_knowledge.map((item) => (
                       <article key={item.id} className="rounded-md border border-slate-200 p-4">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <h3 className="font-medium text-slate-950">{item.title}</h3>
-                          <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">{item.category}</span>
+                          <h3 className="font-medium text-slate-950">
+                            {item.source_type === "document" && item.source_file_name
+                              ? item.source_file_name
+                              : item.title}
+                          </h3>
+                          <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                            {item.source_type === "document" ? `文件知识 · 第 ${item.chunk_index ?? "-"} 个片段` : "手动知识库"}
+                          </span>
                           {item.source_type === "document" && item.source_file_name && (
                             <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
-                              命中资料：{item.source_file_name}
+                              文件来源
                             </span>
                           )}
                         </div>
-                        <p className="whitespace-pre-line text-sm leading-6 text-slate-600">
-                          {item.source_type === "document" ? cleanDocumentSourceText(item.content) : item.content}
-                        </p>
+                        <details className="text-sm text-slate-600">
+                          <summary className="cursor-pointer select-none text-slate-500">展开查看摘要</summary>
+                          <p className="mt-2 whitespace-pre-line leading-6">
+                            {shortText(item.source_type === "document" ? cleanDocumentSourceText(item.content) : item.content, 220)}
+                          </p>
+                        </details>
                       </article>
                     ))
                   )}

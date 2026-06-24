@@ -200,7 +200,8 @@ def _prioritized_items(items: list[dict[str, str]], question: str) -> list[dict[
                 item.get("content", ""),
             ]
         ).lower()
-        matched = any(term in haystack for term in terms)
+        compact_haystack = re.sub(r"\s+", "", haystack)
+        matched = any(term in haystack or term in compact_haystack for term in terms)
         is_document = item.get("source_type") == "document"
         return (1 if matched and is_document else 0, 1 if matched else 0)
 
@@ -217,7 +218,8 @@ def _item_matches_terms(item: dict[str, str], terms: list[str]) -> bool:
             item.get("content", ""),
         ]
     ).lower()
-    return any(term in haystack for term in terms)
+    compact_haystack = re.sub(r"\s+", "", haystack)
+    return any(term in haystack or term in compact_haystack for term in terms)
 
 
 def _question_subject(question: str) -> str:
