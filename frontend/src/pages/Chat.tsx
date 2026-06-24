@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { api } from "../api/client";
 import type { AIModelConfig, ChatResponse } from "../types";
-import { cleanAIText, formatIntentLevel, formatIntentType, formatScopeType } from "./helpers";
+import { cleanAIText, cleanDocumentSourceText, formatIntentLevel, formatIntentType, formatScopeType } from "./helpers";
 
 const presetQuestions = [
   "你们做 AI 客服多少钱？",
@@ -174,8 +174,15 @@ export default function Chat() {
                         <div className="mb-2 flex flex-wrap items-center gap-2">
                           <h3 className="font-medium text-slate-950">{item.title}</h3>
                           <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">{item.category}</span>
+                          {item.source_type === "document" && item.source_file_name && (
+                            <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-700">
+                              命中资料：{item.source_file_name}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-sm leading-6 text-slate-600">{item.content}</p>
+                        <p className="whitespace-pre-line text-sm leading-6 text-slate-600">
+                          {item.source_type === "document" ? cleanDocumentSourceText(item.content) : item.content}
+                        </p>
                       </article>
                     ))
                   )}

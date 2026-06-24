@@ -23,6 +23,28 @@ class KnowledgeItem(Base):
     content = Column(Text, nullable=False)
     keywords = Column(String(255), default="", nullable=False)
     status = Column(String(30), default="active", nullable=False)
+    source_type = Column(String(30), default="manual", nullable=False)
+    source_document_id = Column(Integer, nullable=True)
+    source_file_name = Column(String(255), nullable=True)
+    chunk_index = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=now_utc_naive, nullable=False)
+    updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    original_filename = Column(String(255), nullable=False)
+    stored_filename = Column(String(255), nullable=False)
+    file_extension = Column(String(20), index=True, nullable=False)
+    mime_type = Column(String(120), default="", nullable=False)
+    file_size = Column(Integer, default=0, nullable=False)
+    storage_path = Column(String(500), default="", nullable=False)
+    parse_status = Column(String(30), default="pending", index=True, nullable=False)
+    parse_error = Column(Text, default="", nullable=False)
+    extracted_text_length = Column(Integer, default=0, nullable=False)
+    chunk_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=now_utc_naive, nullable=False)
     updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)
 

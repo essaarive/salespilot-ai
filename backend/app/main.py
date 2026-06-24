@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import init_db
-from app.routers import ai_settings, auth, chat, conversations, dashboard, knowledge, leads
+from app.routers import ai_settings, auth, chat, conversations, dashboard, documents, knowledge, leads
 
 app = FastAPI(title="SalesPilot AI API", version="0.1.0")
 
@@ -28,6 +28,7 @@ def health_check() -> dict[str, str]:
 app.include_router(auth.router)
 app.include_router(dashboard.router)
 app.include_router(knowledge.router)
+app.include_router(documents.router)
 app.include_router(ai_settings.router)
 app.include_router(chat.router)
 app.include_router(chat.public_router)

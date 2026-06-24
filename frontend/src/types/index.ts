@@ -11,6 +11,10 @@ export interface KnowledgeItem {
   content: string;
   keywords: string;
   status: string;
+  source_type?: "manual" | "document";
+  source_document_id?: number | null;
+  source_file_name?: string | null;
+  chunk_index?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -102,4 +106,26 @@ export interface AIModelConfigTestResult {
   message: string;
   provider?: string;
   model?: string;
+}
+
+export type DocumentParseStatus = "pending" | "parsing" | "success" | "failed";
+
+export interface DocumentRecord {
+  id: number;
+  original_filename: string;
+  stored_filename: string;
+  file_extension: string;
+  mime_type: string;
+  file_size: number;
+  parse_status: DocumentParseStatus;
+  parse_error: string;
+  extracted_text_length: number;
+  chunk_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DocumentDetail extends DocumentRecord {
+  text_preview: string;
+  knowledge_preview: KnowledgeItem[];
 }

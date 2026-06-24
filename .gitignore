@@ -11,6 +11,9 @@ backend/salespilot.db
 *.db
 *.sqlite
 *.sqlite3
+storage/uploads/*
+!storage/uploads/.gitkeep
+/uploads/
 node_modules/
 dist/
 build/

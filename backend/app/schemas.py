@@ -11,6 +11,8 @@ ScopeType = Literal["business_related", "sales_adjacent", "general_chat", "out_o
 KnowledgeStatus = Literal["active", "inactive"]
 LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "invalid"]
 AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "volcengine_ark", "custom"]
+DocumentStatus = Literal["pending", "parsing", "success", "failed"]
+KnowledgeSourceType = Literal["manual", "document"]
 
 
 class DateTimeSerializedModel(BaseModel):
@@ -50,6 +52,10 @@ class KnowledgeOut(DateTimeSerializedModel, KnowledgeBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    source_type: KnowledgeSourceType = "manual"
+    source_document_id: Optional[int] = None
+    source_file_name: Optional[str] = None
+    chunk_index: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -132,6 +138,28 @@ class DashboardSummary(BaseModel):
 
 class MessageResponse(BaseModel):
     message: str
+
+
+class DocumentOut(DateTimeSerializedModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    original_filename: str
+    stored_filename: str
+    file_extension: str
+    mime_type: str
+    file_size: int
+    parse_status: DocumentStatus
+    parse_error: str = ""
+    extracted_text_length: int
+    chunk_count: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class DocumentDetail(DocumentOut):
+    text_preview: str = ""
+    knowledge_preview: List[KnowledgeOut] = []
 
 
 class AIModelConfigBase(BaseModel):

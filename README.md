@@ -24,6 +24,7 @@ SalesPilot AI / 智销助手是一个面向中小企业的 AI 智能获客客服
 - 后台登录：演示版固定管理员账号 `admin / admin123`。
 - 仪表盘：统计知识库数量、今日咨询、高意向线索、总线索和最近咨询。
 - 知识库管理：支持新增、编辑、删除、搜索、分类筛选和状态展示。
+- 文件知识库：支持上传 PDF、DOCX、XLSX、TXT、Markdown，自动解析文本并生成知识片段。
 - AI 对话测试：模拟客户咨询，展示 AI 回复、命中知识、意向识别、问题范围和回复来源。
 - 对话记录：保存完整客户问题、AI 回复、意向类型、意向等级和创建时间。
 - 客户线索：管理客户姓名、联系方式、需求、意向等级、跟进状态和备注。
@@ -54,6 +55,7 @@ AI 与检索：
 - OpenAI-Compatible Chat Completions API
 - DeepSeek / OpenAI / 通义千问 / 智谱 GLM / Ollama / 火山方舟 / Custom Provider
 - 简化关键词 RAG
+- 企业文件解析：pypdf / python-docx / openpyxl
 - 意向识别与问题范围分类
 - Mock AI fallback
 
@@ -71,6 +73,7 @@ AI 与检索：
 - AI 服务层独立：AI 调用、mock fallback、模型测试和多 Provider 配置不写死在接口里。
 - 多模型后台配置：支持在后台切换默认模型，API Key 脱敏回显，并提供连接测试。
 - 简化 RAG 清晰可扩展：当前用关键词检索知识库，后续可升级向量检索、Embedding 和重排。
+- 文件知识库复用现有知识表：上传文件会切分为 knowledge_items，现有 RAG 和 Chat 流程可直接命中。
 - 销售客服定位明确：支持问候、业务问题、销售相关、闲聊、无关和风险问题的边界控制。
 - 企业 SaaS 风格：后台包含仪表盘、表格、筛选、弹窗表单、加载态和错误提示。
 - 本地与 Docker 双启动：适合作品集展示、面试讲解和客户演示。
@@ -110,6 +113,13 @@ docker compose up --build
 后端 API：http://localhost:8000
 ```
 
+如果你的电脑同时运行多个项目，推荐 SalesPilot AI 使用独立端口：
+
+```text
+前端：http://127.0.0.1:5176
+后端：http://127.0.0.1:8010
+```
+
 默认账号：
 
 ```text
@@ -133,13 +143,33 @@ env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
 
 Docker Compose 会启动两个容器：
 
-- `backend`：FastAPI 服务，端口 `8000`。
-- `frontend`：托管前端静态页面，并将 `/api` 反向代理到 backend 容器，端口 `5173`。
+- `backend`：FastAPI 服务，容器内端口 `8000`。
+- `frontend`：托管前端静态页面，并将 `/api` 反向代理到 backend 容器，容器内端口 `80`。
+
+宿主机端口可通过环境变量配置，默认仍兼容 `5173 / 8000`：
+
+```bash
+FRONTEND_PORT=5176 BACKEND_PORT=8010 docker compose up --build
+```
+
+Docker Hub 网络不稳定时，可使用备用启动命令：
+
+```bash
+FRONTEND_PORT=5176 BACKEND_PORT=8010 \
+env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 \
+docker compose up --build
+```
 
 SQLite 数据库默认持久化到 Docker volume：
 
 ```text
 /data/salespilot.db
+```
+
+上传文件默认持久化到 Docker volume：
+
+```text
+/app/storage/uploads
 ```
 
 默认 Docker 环境变量包括：
@@ -148,6 +178,8 @@ SQLite 数据库默认持久化到 Docker volume：
 DATABASE_URL=sqlite:////data/salespilot.db
 APP_TIMEZONE=Asia/Shanghai
 TZ=Asia/Shanghai
+UPLOAD_DIR=storage/uploads
+MAX_UPLOAD_SIZE_MB=10
 ```
 
 停止服务：
@@ -165,31 +197,49 @@ docker compose up --build
 
 ## 本地开发启动方式
 
+默认本地开发端口为：
+
+```text
+前端：5173
+后端：8000
+```
+
+多项目并行开发时，推荐 SalesPilot AI 使用：
+
+```text
+前端：5176
+后端：8010
+```
+
 后端：
 
 ```bash
-cd backend
+cd "/Users/ryan/projects/SalesPilot AI/backend"
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python -m app.seed
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 前端：
 
 ```bash
-cd frontend
+cd "/Users/ryan/projects/SalesPilot AI/frontend"
 npm install
-npm run dev
+VITE_PORT=5176 VITE_PROXY_TARGET=http://127.0.0.1:8010 npm run dev -- --host 127.0.0.1
 ```
 
 本地开发访问：
 
 ```text
-http://localhost:5173
+http://127.0.0.1:5176
 ```
+
+前端开发环境统一请求相对路径 `/api/...`，由 Vite proxy 转发到 `VITE_PROXY_TARGET`。端口使用 `strictPort`，如果端口被占用会明确报错，不会自动跳到未知端口。
+
+可复制 `frontend/.env.local.example` 作为本地端口示例，但不要提交真实 `.env.local`。
 
 ## 环境变量
 
@@ -221,11 +271,84 @@ VOLCENGINE_ARK_MODEL=
 DATABASE_URL=sqlite:///./salespilot.db
 APP_TIMEZONE=Asia/Shanghai
 TZ=Asia/Shanghai
+UPLOAD_DIR=storage/uploads
+MAX_UPLOAD_SIZE_MB=10
+FRONTEND_PORT=5176
+BACKEND_PORT=8010
 ```
 
 数据库中的后台默认模型配置优先于环境变量。环境变量主要作为 fallback：当数据库默认配置不存在、本地初始化尚未完成或 AI 服务未传入数据库会话时，系统会读取环境变量配置。
 
 时间默认使用 `APP_TIMEZONE=Asia/Shanghai`。后端时间字段按 UTC 生成和保存，接口返回 ISO 时间字符串，前端统一按 Asia/Shanghai 展示为 `yyyy-MM-dd HH:mm`。
+
+## 多项目并行开发端口规范
+
+SalesPilot AI 默认兼容常规开发端口：
+
+```text
+前端：5173
+后端：8000
+```
+
+当本机已有其他项目占用端口时，推荐使用：
+
+```text
+前端：5176
+后端：8010
+```
+
+启动命令：
+
+```bash
+cd "/Users/ryan/projects/SalesPilot AI/backend"
+source .venv/bin/activate
+python -m app.seed
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8010
+```
+
+```bash
+cd "/Users/ryan/projects/SalesPilot AI/frontend"
+VITE_PORT=5176 VITE_PROXY_TARGET=http://127.0.0.1:8010 npm run dev -- --host 127.0.0.1
+```
+
+验证代理：
+
+```bash
+curl http://127.0.0.1:8010/api/health
+curl http://127.0.0.1:5176/api/health
+```
+
+如果登录页出现“无法连接后端服务，请确认前端代理配置和后端服务是否已启动。”，请检查：
+
+1. 后端是否已启动。
+2. `VITE_PROXY_TARGET` 是否指向正确后端端口。
+3. `VITE_PORT` 是否与其他项目冲突。
+4. 浏览器访问地址是否为当前 SalesPilot AI 项目端口。
+
+## 文件知识库上传
+
+后台「知识库管理」页面包含两个 Tab：
+
+- 手动知识库：维护手动录入的企业资料。
+- 文件知识库：上传企业文件，系统自动解析文本、切分片段并写入现有知识库。
+
+支持格式：
+
+```text
+PDF / DOCX / XLSX / TXT / Markdown
+```
+
+上传限制：
+
+- 单次只上传一个文件。
+- 单文件最大 10 MB，文件名最大 120 个字符。
+- 不支持 `.doc`、`.xls`、`.csv`、图片、压缩包、音频、视频和网页链接。
+- PDF 仅支持可提取文本的文件，不支持扫描件 OCR。
+- 上传目录默认为 `storage/uploads`，不会作为公开静态目录暴露。
+
+文件上传后会生成 `documents` 记录，并将知识片段写入 `knowledge_items`。删除文件时会同步删除关联知识片段，确保对应内容不再参与 RAG 检索。
+
+> 文件上传能力为本地 Demo 实现，不适用于生产环境直接处理敏感企业资料。生产环境建议补充病毒扫描、对象存储、权限隔离、审计日志、文件加密和备份策略。
 
 ## 多模型 API 配置
 
@@ -325,6 +448,13 @@ http://host.docker.internal:11434/v1
 - `PUT /api/knowledge/{id}`
 - `DELETE /api/knowledge/{id}`
 
+文件知识库：
+
+- `GET /api/documents`
+- `POST /api/documents/upload`
+- `GET /api/documents/{id}`
+- `DELETE /api/documents/{id}`
+
 对话记录：
 
 - `GET /api/conversations`
@@ -384,6 +514,18 @@ scope_type
 
 也可以在后台知识库新增一条资料，再回到公开咨询页测试知识库更新后的回复效果。
 
+文件知识库演示流程：
+
+1. 进入后台 `/knowledge`，切换到「文件知识库」。
+2. 上传一份 TXT / Markdown / DOCX / XLSX / PDF 企业资料，例如包含：
+   - `基础版价格：800-3000 元`
+   - `企业微信接入：支持`
+   - `交付周期：3-7 个工作日`
+3. 上传成功后查看文件详情，确认文本预览和知识片段数量。
+4. 进入 `/chat` 或 `/public-chat` 提问：`你们基础版多少钱？`、`能接企业微信吗？`、`多久可以上线？`
+5. 查看 AI 回复是否命中文件资料，并在后台 Chat 页面查看命中资料来源。
+6. 删除该文件后，再次提问对应内容，确认文件片段不再参与检索。
+
 ## 数据重置说明
 
 重新导入种子数据：
@@ -424,6 +566,7 @@ v0.4.2：知识库扩充与销售客服回复效果优化
 v0.4.3：模型 API 接入体验与火山方舟支持优化
 v0.4.4：问题范围识别与对话边界优化
 v0.4.5：系统时间生成与展示时区统一
+v0.6.0：企业文件知识库上传版，支持文件解析、切片和写入知识库
 ```
 
 ## 当前限制
@@ -432,6 +575,8 @@ v0.4.5：系统时间生成与展示时区统一
 - 未实现 JWT、刷新 token、RBAC、多租户和细粒度权限控制。
 - API Key 当前存储在 SQLite 中，未做生产级加密或密钥托管。
 - RAG 使用关键词检索，没有接入向量数据库、Embedding 和召回重排。
+- 文件上传是同步解析流程，不包含异步任务队列、OCR、在线预览、病毒扫描和对象存储。
+- 上传文件保存在本地目录或 Docker volume 中，不适合直接处理敏感生产资料。
 - SQLite 适合本地 Demo，不适合高并发生产场景。
 - 未加入完整审计日志、限流、防暴力破解、监控告警和备份策略。
 - npm audit 中与前端构建链相关的 high 警告未使用 `npm audit fix --force` 强制处理。
@@ -439,7 +584,7 @@ v0.4.5：系统时间生成与展示时区统一
 ## 后续路线图
 
 - 登录升级为 JWT、bcrypt/passlib 密码哈希、RBAC 和用户管理。
-- 知识库支持文件上传、Excel / PDF / Word 批量导入和内容解析。
+- 文件知识库升级为批量上传、异步解析任务、OCR、对象存储和权限隔离。
 - RAG 升级为向量检索、Embedding、召回重排和引用来源展示。
 - 接入企业微信、飞书、微信公众号、网页客服等多渠道。
 - 增加线索跟进阶段、销售提醒、统计报表、导出和 CRM 对接。

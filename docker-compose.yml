@@ -29,10 +29,13 @@ services:
       DATABASE_URL: ${DATABASE_URL:-sqlite:////data/salespilot.db}
       APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Shanghai}
       TZ: ${TZ:-Asia/Shanghai}
+      UPLOAD_DIR: ${UPLOAD_DIR:-storage/uploads}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-10}
     volumes:
       - salespilot_data:/data
+      - salespilot_uploads:/app/storage/uploads
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     restart: unless-stopped
 
   frontend:
@@ -46,8 +49,9 @@ services:
     environment:
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT:-5173}:80"
     restart: unless-stopped
 
 volumes:
   salespilot_data:
+  salespilot_uploads:

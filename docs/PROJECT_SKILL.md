@@ -33,6 +33,7 @@ SalesPilot AI / 智销助手
 - 公开客户咨询页
 - 企业后台管理系统
 - 知识库管理
+- 文件知识库上传
 - AI 销售客服问答
 - 简化 RAG 检索
 - 客户意向识别
@@ -178,6 +179,15 @@ PUT /api/knowledge/{id}
 DELETE /api/knowledge/{id}
 ```
 
+文件知识库：
+
+```text
+GET /api/documents
+POST /api/documents/upload
+GET /api/documents/{id}
+DELETE /api/documents/{id}
+```
+
 对话记录：
 
 ```text
@@ -223,9 +233,12 @@ backend/app/routers/chat.py
 backend/app/routers/conversations.py
 backend/app/routers/leads.py
 backend/app/routers/ai_settings.py
+backend/app/routers/documents.py
 backend/app/services/ai_service.py
 backend/app/services/rag_service.py
 backend/app/services/intent_service.py
+backend/app/services/document_parser.py
+backend/app/services/document_chunker.py
 ```
 
 ## 当前核心前端文件
@@ -295,9 +308,25 @@ env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
 
 ```bash
 curl http://localhost:8000/api/health
+curl http://127.0.0.1:8010/api/health
+curl http://127.0.0.1:5176/api/health
 ```
 
 ## 本地开发启动方式
+
+默认本地端口：
+
+```text
+前端：5173
+后端：8000
+```
+
+多项目并行开发推荐端口：
+
+```text
+前端：5176
+后端：8010
+```
 
 后端：
 
@@ -305,20 +334,29 @@ curl http://localhost:8000/api/health
 cd /Users/ryan/projects/SalesPilot\ AI/backend
 source .venv/bin/activate
 python -m app.seed
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8010
 ```
 
 前端：
 
 ```bash
 cd /Users/ryan/projects/SalesPilot\ AI/frontend
-npm run dev
+VITE_PORT=5176 VITE_PROXY_TARGET=http://127.0.0.1:8010 npm run dev -- --host 127.0.0.1
 ```
 
 访问：
 
 ```text
-http://localhost:5173
+http://127.0.0.1:5176
+```
+
+前端开发环境规则：
+
+```text
+VITE_PORT 未设置 -> 5173
+VITE_PROXY_TARGET 未设置 -> http://127.0.0.1:8000
+端口使用 strictPort，端口冲突时应明确报错，不自动漂移。
+前端 API 请求使用相对路径 /api/...，由 Vite proxy 转发。
 ```
 
 ## Docker 启动方式
@@ -328,10 +366,20 @@ cd /Users/ryan/projects/SalesPilot\ AI
 env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
 ```
 
+多项目并行开发推荐 Docker 启动：
+
+```bash
+cd /Users/ryan/projects/SalesPilot\ AI
+FRONTEND_PORT=5176 BACKEND_PORT=8010 \
+env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 \
+docker compose up --build
+```
+
 访问：
 
 ```text
-http://localhost:5173
+默认：http://localhost:5173
+推荐：http://127.0.0.1:5176
 ```
 
 ## 时间配置
@@ -353,14 +401,23 @@ Docker 中同时设置 TZ=Asia/Shanghai。
 - 当前浏览器访问的是 Docker 容器还是本地 Vite
 - 是否重新执行了 `npm run dev`
 - Docker 模式下是否重新 `docker compose up --build`
-- 端口 5173 / 8000 是否被旧进程占用
+- 端口 5173 / 8000 / 5176 / 8010 是否被旧进程占用
 
 排查命令：
 
 ```bash
 lsof -i :5173
 lsof -i :8000
+lsof -i :5176
+lsof -i :8010
 ```
+
+如果登录页出现“无法连接后端服务，请确认前端代理配置和后端服务是否已启动。”，优先检查：
+
+- 后端是否已启动。
+- `VITE_PROXY_TARGET` 是否指向当前后端端口。
+- `VITE_PORT` 是否与其他项目冲突。
+- 浏览器访问地址是否为当前 SalesPilot AI 项目端口。
 
 ## 数据重置
 
@@ -381,6 +438,44 @@ env DOCKER_BUILDKIT=0 COMPOSE_DOCKER_CLI_BUILD=0 docker compose up --build
 ```
 
 注意：`docker compose down -v` 会清空线索、对话、知识库等数据。
+
+## 文件知识库上传
+
+```text
+上传目录：storage/uploads
+Docker volume：salespilot_uploads -> /app/storage/uploads
+环境变量：UPLOAD_DIR=storage/uploads
+环境变量：MAX_UPLOAD_SIZE_MB=10
+```
+
+支持格式：
+
+```text
+.pdf
+.docx
+.xlsx
+.txt
+.md
+```
+
+限制：
+
+- 单次只上传一个文件。
+- 单文件最大 10 MB，文件名最大 120 个字符。
+- 不支持 .doc / .xls / .csv / 图片 / 扫描件 PDF OCR / 压缩包 / 网页链接 / 音视频。
+- 服务端必须重新生成安全保存文件名，禁止路径穿越。
+- 上传目录不作为公开静态资源目录。
+- 上传文件不能进入 Git，`storage/uploads/*` 默认忽略，仅保留 `.gitkeep`。
+- 文件知识片段复用 `knowledge_items`，`source_type=document`。
+- 删除 documents 记录时必须同步删除关联知识片段和本地原文件。
+
+解析策略：
+
+- PDF 使用 pypdf 按页提取文本，不做 OCR。
+- DOCX 使用 python-docx 提取段落和表格。
+- XLSX 使用 openpyxl 读取可见 Sheet 并按表头组织行文本。
+- TXT / Markdown 使用 UTF-8 / UTF-8-SIG 读取并清理空行和 Markdown 噪声。
+- 切片目标 400-600 字，最大 700 字，保留 50-80 字上下文重叠。
 
 ## 当前意向类型
 
@@ -554,6 +649,7 @@ v0.4.2：知识库与销售回复效果优化
 v0.4.3：模型 API 接入体验与火山方舟支持优化
 v0.4.4：问题范围识别与对话边界优化
 v0.4.5：系统时间生成与展示时区统一
+v0.6.0：企业文件知识库上传版
 ```
 
 ## 推荐演示流程
@@ -571,6 +667,7 @@ v0.4.5：系统时间生成与展示时区统一
 8. 进入对话记录，查看完整咨询记录。
 9. 进入模型设置，展示 DeepSeek / OpenAI / 通义 / 智谱 / Ollama / 火山方舟配置。
 10. 进入后台 Chat 页面，展示当前模型、回复来源：真实模型或 mock 演示。
+11. 进入知识库的「文件知识库」Tab，上传企业资料文件，测试 `/chat` 和 `/public-chat` 是否能命中文件片段。
 
 ## 截图清单
 
@@ -602,8 +699,8 @@ docs/screenshots/ai-settings.png
 优先级从高到低：
 
 ```text
-v0.5.0：文件上传知识库
-v0.6.0：向量检索 / Chroma / FAISS
-v0.7.0：JWT + bcrypt/passlib + RBAC
-v0.8.0：Playwright E2E 测试与自动截图
+v0.6.0：企业文件知识库上传版
+v0.7.0：向量检索 / Chroma / FAISS
+v0.8.0：JWT + bcrypt/passlib + RBAC
+v0.9.0：Playwright E2E 测试与自动截图
 ```

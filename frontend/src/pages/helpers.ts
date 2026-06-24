@@ -1,4 +1,4 @@
-import type { IntentLevel, IntentType, ScopeType } from "../types";
+import type { DocumentParseStatus, IntentLevel, IntentType, ScopeType } from "../types";
 
 export const intentTypeLabel: Record<IntentType, string> = {
   pricing: "询价",
@@ -33,6 +33,13 @@ export const scopeTypeLabel: Record<ScopeType, string> = {
   unsafe: "风险问题",
 };
 
+export const documentStatusLabel: Record<DocumentParseStatus, string> = {
+  pending: "等待解析",
+  parsing: "正在解析",
+  success: "解析成功",
+  failed: "解析失败",
+};
+
 export function formatIntentType(value: string) {
   return intentTypeLabel[value as IntentType] ?? (value || "未知");
 }
@@ -47,6 +54,29 @@ export function formatStatus(value: string) {
 
 export function formatScopeType(value?: string) {
   return value ? scopeTypeLabel[value as ScopeType] ?? value : "未知";
+}
+
+export function formatDocumentStatus(value: string) {
+  return documentStatusLabel[value as DocumentParseStatus] ?? (value || "未知");
+}
+
+export function formatFileSize(size: number) {
+  if (!Number.isFinite(size) || size <= 0) return "-";
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / 1024 / 1024).toFixed(1)} MB`;
+}
+
+export function cleanDocumentSourceText(value: string) {
+  return value
+    .replace(/^来源文件：.*$/gm, "")
+    .replace(/^片段：.*$/gm, "")
+    .replace(/^页码：.*$/gm, "")
+    .replace(/^Sheet：.*$/gm, "")
+    .replace(/^表格：.*$/gm, "")
+    .replace(/^正文：/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 const APP_DISPLAY_TIME_ZONE = "Asia/Shanghai";

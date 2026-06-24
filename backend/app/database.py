@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
@@ -20,3 +20,24 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_schema_compatibility()
+
+
+def ensure_schema_compatibility() -> None:
+    if not DATABASE_URL.startswith("sqlite"):
+        return
+
+    with engine.begin() as connection:
+        existing_columns = {
+            row[1]
+            for row in connection.execute(text("PRAGMA table_info(knowledge_items)")).fetchall()
+        }
+        migrations = {
+            "source_type": "ALTER TABLE knowledge_items ADD COLUMN source_type VARCHAR(30) DEFAULT 'manual' NOT NULL",
+            "source_document_id": "ALTER TABLE knowledge_items ADD COLUMN source_document_id INTEGER",
+            "source_file_name": "ALTER TABLE knowledge_items ADD COLUMN source_file_name VARCHAR(255)",
+            "chunk_index": "ALTER TABLE knowledge_items ADD COLUMN chunk_index INTEGER",
+        }
+        for column_name, statement in migrations.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
