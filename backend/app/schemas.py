@@ -23,6 +23,7 @@ LeadStatus = Literal["new", "contacted", "following", "qualified", "closed", "in
 AIProvider = Literal["deepseek", "openai", "qwen", "zhipu", "ollama", "volcengine_ark", "custom"]
 DocumentStatus = Literal["pending", "parsing", "success", "failed"]
 KnowledgeSourceType = Literal["manual", "document"]
+WidgetPosition = Literal["left", "right"]
 
 
 class DateTimeSerializedModel(BaseModel):
@@ -248,6 +249,8 @@ class CompanySettingsBase(BaseModel):
     business_hours: str = ""
     handoff_message: str = ""
     forbidden_topics: str = ""
+    allowed_embed_domains: str = ""
+    widget_position: WidgetPosition = "right"
 
     @field_validator(
         "company_name",
@@ -265,6 +268,7 @@ class CompanySettingsBase(BaseModel):
         "business_hours",
         "handoff_message",
         "forbidden_topics",
+        "allowed_embed_domains",
         mode="before",
     )
     @classmethod

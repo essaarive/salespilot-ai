@@ -7,9 +7,15 @@ from app.services.company_service import ensure_company_settings
 
 app = FastAPI(title="SalesPilot AI API", version="0.1.0")
 
+# 5173 is the default Vite port; 5176 is recommended for parallel local projects.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

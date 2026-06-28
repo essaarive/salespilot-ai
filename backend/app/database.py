@@ -86,6 +86,8 @@ def ensure_schema_compatibility() -> None:
                 "business_hours": "ALTER TABLE company_settings ADD COLUMN business_hours VARCHAR(160) DEFAULT '周一至周五 09:00-18:00' NOT NULL",
                 "handoff_message": "ALTER TABLE company_settings ADD COLUMN handoff_message TEXT DEFAULT '您的问题已记录，我们建议由工作人员进一步确认并跟进。' NOT NULL",
                 "forbidden_topics": "ALTER TABLE company_settings ADD COLUMN forbidden_topics TEXT DEFAULT '' NOT NULL",
+                "allowed_embed_domains": "ALTER TABLE company_settings ADD COLUMN allowed_embed_domains TEXT DEFAULT '' NOT NULL",
+                "widget_position": "ALTER TABLE company_settings ADD COLUMN widget_position VARCHAR(20) DEFAULT 'right' NOT NULL",
                 "created_at": "ALTER TABLE company_settings ADD COLUMN created_at DATETIME",
                 "updated_at": "ALTER TABLE company_settings ADD COLUMN updated_at DATETIME",
             }

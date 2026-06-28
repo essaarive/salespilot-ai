@@ -125,6 +125,7 @@ API Key：火山方舟 API Key
 ```text
 /                 客户官网首页
 /public-chat      公开客户咨询页
+/embed/chat       嵌入式 iframe 聊天页
 ```
 
 后台页面：
@@ -261,6 +262,7 @@ frontend/src/api/client.ts
 frontend/src/layouts/AdminLayout.tsx
 frontend/src/pages/PublicHome.tsx
 frontend/src/pages/PublicChat.tsx
+frontend/src/pages/EmbedChat.tsx
 frontend/src/pages/Login.tsx
 frontend/src/pages/Dashboard.tsx
 frontend/src/pages/Knowledge.tsx
@@ -371,6 +373,17 @@ VITE_PROXY_TARGET 未设置 -> http://127.0.0.1:8000
 端口使用 strictPort，端口冲突时应明确报错，不自动漂移。
 前端 API 请求使用相对路径 /api/...，由 Vite proxy 转发。
 ```
+
+本地开发 CORS 允许来源：
+
+```text
+http://localhost:5173
+http://127.0.0.1:5173
+http://localhost:5176
+http://127.0.0.1:5176
+```
+
+其中 `5173` 是默认兼容端口，`5176` 是多项目并行开发推荐端口。此允许列表用于 Demo 本地开发，不等同于生产级完整跨域安全方案。
 
 ## Docker 启动方式
 
@@ -637,6 +650,8 @@ human_contact_email
 business_hours
 handoff_message
 forbidden_topics
+allowed_embed_domains
+widget_position
 ```
 
 规则：
@@ -647,6 +662,59 @@ forbidden_topics
 - `/api/chat` 和 `/api/public/chat` 的 Prompt 会注入当前企业名称、客服名称、业务范围、工作时间、人工联系方式和禁止回答内容。
 - 命中 `forbidden_topics` 时不展开回答，走人工兜底并设置 `requires_handoff=true`。
 - Logo 第一版仅支持 URL；不支持 Logo 文件上传、企业注册、多租户、自定义域名或复杂主题编辑器。
+
+## 当前官网嵌入式客服组件
+
+v0.9.0 支持单企业官网嵌入式 AI 客服组件，不做多租户 Widget Key。
+
+公开资源与页面：
+
+```text
+/widget.js       纯 JavaScript 嵌入脚本
+/embed/chat      iframe 聊天页面
+```
+
+脚本示例：
+
+```html
+<script
+  src="https://your-domain.com/widget.js"
+  data-api-base="https://your-domain.com"
+  data-position="right"
+  data-allowed-domains="example.com,www.example.com"
+></script>
+```
+
+本地开发示例：
+
+```html
+<script
+  src="http://127.0.0.1:5176/widget.js"
+  data-api-base="http://127.0.0.1:5176"
+  data-position="right"
+  data-allowed-domains="127.0.0.1,localhost"
+></script>
+```
+
+规则：
+
+- `widget.js` 是原生 JavaScript，不依赖 React、Tailwind、jQuery 或第三方 CDN。
+- widget 使用 Shadow DOM 隔离宿主页面样式，避免污染企业官网。
+- 悬浮位置通过 `data-position=right|left` 控制。
+- iframe URL 为 `{data-api-base}/embed/chat`。
+- iframe 聊天页复用 `GET /api/company-settings/public` 和 `POST /api/public/chat`。
+- `/embed/chat` 不显示官网导航、后台导航、内部文件名、模型配置或后台链接。
+- iframe 关闭协议为 `salespilot:close`，宿主脚本必须同时校验 message origin 和当前 iframe source，并忽略其他消息。
+- `allowed_embed_domains` 保存在 `company_settings`，后台用于生成嵌入代码。
+- `data-allowed-domains` 按 hostname 白名单判断，忽略协议和端口；留空为 Demo 模式。
+- `/api/company-settings/public` 不返回 `allowed_embed_domains`、`forbidden_topics` 或内部字段。
+- 白名单是前端基础限制，不是生产级安全认证；不要把当前 Demo 包装成安全隔离完整的生产 Widget。
+
+本地宿主页测试文件：
+
+```text
+docs/widget-demo.html
+```
 
 ## 真实模型 API 验收流程
 
@@ -753,6 +821,7 @@ v0.4.5：系统时间生成与展示时区统一
 v0.6.0：企业文件知识库上传版
 v0.7.0：回答可信度、人工兜底与文件知识状态管理
 v0.8.0：单企业品牌配置与企业专属 AI 客服版
+v0.9.0：官网嵌入式 AI 客服组件
 ```
 
 ## 推荐演示流程
@@ -782,6 +851,7 @@ docs/screenshots/knowledge.png
 docs/screenshots/leads.png
 docs/screenshots/conversations.png
 docs/screenshots/ai-settings.png
+docs/screenshots/embed-chat.png
 ```
 
 ## Codex 输出要求
@@ -802,8 +872,7 @@ docs/screenshots/ai-settings.png
 优先级从高到低：
 
 ```text
-v0.6.0：企业文件知识库上传版
-v0.9.0：向量检索 / Chroma / FAISS
+v0.10.0：向量检索 / Chroma / FAISS
 v1.0.0：JWT + bcrypt/passlib + RBAC
 v1.1.0：Playwright E2E 测试与自动截图
 ```

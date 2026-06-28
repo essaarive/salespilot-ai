@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, Palette, Save, UserRound } from "lucide-react";
+import { Building2, CheckCircle2, Code2, Copy, ExternalLink, Palette, Save, UserRound } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { api } from "../api/client";
@@ -8,6 +8,8 @@ import { defaultCompanySettings, hasHumanContact, normalizeBrandColor } from "./
 const emptyForm: CompanySettingsPayload = {
   ...defaultCompanySettings,
   forbidden_topics: "",
+  allowed_embed_domains: "",
+  widget_position: "right",
 };
 
 const providerLabels: Record<string, string> = {
@@ -41,7 +43,18 @@ function toForm(settings: CompanySettings): CompanySettingsPayload {
     business_hours: fieldValue(settings.business_hours),
     handoff_message: fieldValue(settings.handoff_message),
     forbidden_topics: fieldValue(settings.forbidden_topics),
+    allowed_embed_domains: fieldValue(settings.allowed_embed_domains),
+    widget_position: settings.widget_position === "left" ? "left" : "right",
   };
+}
+
+function getDefaultEmbedBaseUrl() {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
+}
+
+function normalizeEmbedBaseUrl(value: string) {
+  return value.trim().replace(/\/+$/, "");
 }
 
 export default function CompanySettingsPage() {
@@ -53,9 +66,24 @@ export default function CompanySettingsPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [logoError, setLogoError] = useState(false);
+  const [copyMessage, setCopyMessage] = useState("");
+  const [embedBaseUrl, setEmbedBaseUrl] = useState(getDefaultEmbedBaseUrl);
 
   const brandColor = normalizeBrandColor(form.brand_color);
   const contactConfigured = hasHumanContact(form);
+  const embedDomains = form.allowed_embed_domains.trim();
+  const normalizedEmbedBaseUrl = normalizeEmbedBaseUrl(embedBaseUrl || getDefaultEmbedBaseUrl());
+  const embedCode = useMemo(() => {
+    const attrs = [
+      `  src="${normalizedEmbedBaseUrl}/widget.js"`,
+      `  data-api-base="${normalizedEmbedBaseUrl}"`,
+      `  data-position="${form.widget_position}"`,
+    ];
+    if (embedDomains) {
+      attrs.push(`  data-allowed-domains="${embedDomains}"`);
+    }
+    return `<script\n${attrs.join("\n")}\n></script>`;
+  }, [embedDomains, form.widget_position, normalizedEmbedBaseUrl]);
 
   const modelLabel = useMemo(() => {
     if (!currentModel) return "暂无默认模型";
@@ -84,8 +112,9 @@ export default function CompanySettingsPage() {
     loadData();
   }, []);
 
-  const setField = (key: keyof CompanySettingsPayload, value: string) => {
+  const setField = <K extends keyof CompanySettingsPayload>(key: K, value: CompanySettingsPayload[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+    setCopyMessage("");
   };
 
   const validate = () => {
@@ -117,6 +146,18 @@ export default function CompanySettingsPage() {
       setError(err instanceof Error ? err.message : "保存企业设置失败");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const copyEmbedCode = async () => {
+    setCopyMessage("");
+    setError("");
+    try {
+      await navigator.clipboard.writeText(embedCode);
+      setCopyMessage("嵌入代码已复制。");
+    } catch (err) {
+      console.error("Copy embed code failed:", err);
+      setError("复制失败，请手动复制嵌入代码。");
     }
   };
 
@@ -251,6 +292,66 @@ export default function CompanySettingsPage() {
                 <span className="mb-1 block text-sm font-medium text-slate-700">人工转接提示语</span>
                 <textarea className="field min-h-20" value={form.handoff_message} onChange={(event) => setField("handoff_message", event.target.value)} />
               </label>
+            </div>
+          </section>
+
+          <section className="rounded-lg border border-slate-200 bg-white p-5">
+            <div className="mb-5 flex items-center gap-2">
+              <Code2 size={18} className="text-brand-600" />
+              <h3 className="font-semibold text-slate-950">官网嵌入客服</h3>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-sm font-medium text-slate-700">允许嵌入域名</span>
+                <textarea
+                  className="field min-h-20"
+                  value={form.allowed_embed_domains}
+                  onChange={(event) => setField("allowed_embed_domains", event.target.value)}
+                  placeholder="example.com, www.example.com, localhost, 127.0.0.1"
+                />
+                <span className="mt-1 block text-xs text-slate-500">保存时会自动清洗协议、路径、端口和重复域名。留空时为 Demo 模式，不限制嵌入域名。</span>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">悬浮位置</span>
+                <select
+                  className="field"
+                  value={form.widget_position}
+                  onChange={(event) => setField("widget_position", event.target.value === "left" ? "left" : "right")}
+                >
+                  <option value="right">右下角</option>
+                  <option value="left">左下角</option>
+                </select>
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-sm font-medium text-slate-700">部署地址</span>
+                <input
+                  className="field"
+                  value={embedBaseUrl}
+                  onChange={(event) => setEmbedBaseUrl(event.target.value)}
+                  placeholder="https://your-domain.com"
+                />
+              </label>
+              {!embedDomains && (
+                <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 md:col-span-2">
+                  当前为 Demo 模式，未限制嵌入域名。正式展示前建议填写企业官网域名。
+                </p>
+              )}
+              <label className="block md:col-span-2">
+                <span className="mb-1 block text-sm font-medium text-slate-700">嵌入代码</span>
+                <textarea className="field min-h-36 font-mono text-xs" value={embedCode} readOnly />
+                <span className="mt-1 block text-xs text-slate-500">将代码粘贴到企业官网 &lt;/body&gt; 标签前。</span>
+              </label>
+              <div className="flex flex-wrap gap-2 md:col-span-2">
+                <button className="btn-secondary" type="button" onClick={copyEmbedCode}>
+                  <Copy size={16} />
+                  复制代码
+                </button>
+                <button className="btn-secondary" type="button" onClick={() => window.open("/embed/chat", "_blank", "noopener,noreferrer")}>
+                  <ExternalLink size={16} />
+                  打开预览
+                </button>
+                {copyMessage && <span className="inline-flex items-center text-sm text-emerald-700">{copyMessage}</span>}
+              </div>
             </div>
           </section>
         </div>

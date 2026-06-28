@@ -89,6 +89,39 @@ def _parse_context_items(context: str) -> list[dict[str, str]]:
     return items
 
 
+def _parse_company_context(prompt: str) -> dict[str, str]:
+    defaults = {
+        "company_name": "SalesPilot AI",
+        "company_intro": "面向中小企业的 AI 智能获客客服系统。",
+        "customer_service_name": "智销助手",
+        "business_scope": "AI 客服、知识库问答、销售线索沉淀、多模型接入、企业官网咨询。",
+        "business_hours": "周一至周五 09:00-18:00",
+        "human_contact": "未配置",
+        "forbidden_topics": "未配置",
+    }
+    marker = "当前服务企业："
+    end_marker = "回答时请遵循："
+    if marker not in prompt or end_marker not in prompt:
+        return defaults
+
+    block = prompt.split(marker, 1)[1].split(end_marker, 1)[0]
+    field_map = {
+        "企业名称：": "company_name",
+        "企业简介：": "company_intro",
+        "客服名称：": "customer_service_name",
+        "业务范围：": "business_scope",
+        "工作时间：": "business_hours",
+        "人工联系方式：": "human_contact",
+        "禁止回答内容：": "forbidden_topics",
+    }
+    parsed = defaults.copy()
+    for line in block.splitlines():
+        for prefix, key in field_map.items():
+            if line.startswith(prefix):
+                parsed[key] = line.replace(prefix, "", 1).strip() or defaults[key]
+    return parsed
+
+
 def _summarize_items(items: list[dict[str, str]], limit: int = 3) -> str:
     contents = []
     for item in items[:limit]:
@@ -294,6 +327,11 @@ def _mock_answer(prompt: str) -> str:
         context = prompt.split(context_marker, 1)[1].split(question_marker, 1)[0].strip()
         question = prompt.split(question_marker, 1)[1].split("请生成", 1)[0].strip()
 
+    company = _parse_company_context(prompt)
+    company_name = company["company_name"]
+    service_name = company["customer_service_name"]
+    business_scope = company["business_scope"]
+
     if not context:
         return "目前资料中没有相关信息"
 
@@ -310,8 +348,8 @@ def _mock_answer(prompt: str) -> str:
 
     if _is_general_intro(question_lower):
         return _finish(
-            "SalesPilot AI 是面向中小企业的 AI 销售客服系统，主要用于官网咨询接待、企业知识库问答、客户意向识别和高意向线索沉淀。"
-            "它适合先帮销售完成第一轮接待，再把值得跟进的客户交给人工。您可以告诉我行业、接入渠道或当前客服痛点，我帮您判断适合方案。"
+            f"{company_name}主要提供{business_scope}。我是{service_name}，可以先根据企业资料回答常见问题，并在需求明确或资料不足时引导人工跟进。"
+            "您可以告诉我行业、接入渠道或当前客服痛点，我帮您判断适合方案。"
         )
 
     if _contains_any(question_lower, ["价格", "报价", "多少钱", "费用", "套餐", "收费", "预算"]):
@@ -359,7 +397,7 @@ def _mock_answer(prompt: str) -> str:
 
     if _contains_any(question_lower, ["coze", "dify", "区别", "对比"]):
         return _finish(
-            f"简单说，SalesPilot AI 更偏销售客服业务闭环。{_summarize_items(items, limit=1)}。"
+            f"简单说，{company_name}当前方案更偏销售客服业务闭环。{_summarize_items(items, limit=1)}。"
             "如果您的目标是官网咨询、意向识别、对话记录和线索跟进，这个项目会更贴近销售场景。"
         )
 

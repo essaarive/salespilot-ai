@@ -124,5 +124,7 @@ class CompanySettings(Base):
     business_hours = Column(String(160), default="", nullable=False)
     handoff_message = Column(Text, default="", nullable=False)
     forbidden_topics = Column(Text, default="", nullable=False)
+    allowed_embed_domains = Column(Text, default="", nullable=False)
+    widget_position = Column(String(20), default="right", nullable=False)
     created_at = Column(DateTime, default=now_utc_naive, nullable=False)
     updated_at = Column(DateTime, default=now_utc_naive, onupdate=now_utc_naive, nullable=False)

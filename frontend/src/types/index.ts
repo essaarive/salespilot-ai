@@ -165,6 +165,8 @@ export interface PublicCompanySettings {
 export interface CompanySettings extends PublicCompanySettings {
   id: number;
   forbidden_topics: string;
+  allowed_embed_domains: string;
+  widget_position: "left" | "right";
   created_at: string;
   updated_at: string;
 }

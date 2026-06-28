@@ -5,7 +5,12 @@ from sqlalchemy.orm import Session
 from app.deps import get_db, verify_token
 from app.models import CompanySettings
 from app.schemas import CompanySettingsOut, CompanySettingsUpdate, PublicCompanySettings
-from app.services.company_service import DEFAULT_COMPANY_SETTINGS, get_or_create_company_settings
+from app.services.company_service import (
+    DEFAULT_COMPANY_SETTINGS,
+    get_or_create_company_settings,
+    normalize_embed_domains,
+    normalize_widget_position,
+)
 
 router = APIRouter(prefix="/api/company-settings", tags=["company-settings"])
 
@@ -45,6 +50,8 @@ def update_company_settings(payload: CompanySettingsUpdate, db: Session = Depend
         data = payload.model_dump()
         if not data.get("company_short_name"):
             data["company_short_name"] = data["company_name"]
+        data["allowed_embed_domains"] = normalize_embed_domains(data.get("allowed_embed_domains", ""))
+        data["widget_position"] = normalize_widget_position(data.get("widget_position", "right"))
         for key in DEFAULT_COMPANY_SETTINGS:
             setattr(settings, key, data.get(key, ""))
         db.commit()

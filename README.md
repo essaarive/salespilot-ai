@@ -30,6 +30,7 @@ SalesPilot AI / 智销助手是一个面向中小企业的 AI 智能获客客服
 - 客户线索：管理客户姓名、联系方式、需求、意向等级、跟进状态、备注和人工跟进原因。
 - 模型设置：后台配置 DeepSeek、OpenAI、通义千问、智谱 GLM、Ollama、火山方舟和自定义兼容 API。
 - 企业设置：配置企业名称、Logo URL、客服名称、欢迎语、品牌主色、业务范围和人工联系方式。
+- 官网嵌入式客服：通过 `widget.js` 将品牌化 AI 客服悬浮窗嵌入企业已有官网。
 - Mock fallback：未配置 API Key、模型请求失败或响应异常时，自动使用演示回复，保证流程可跑通。
 
 ## 技术栈
@@ -79,6 +80,7 @@ AI 与检索：
 - 回答可信度增强：后台可查看回答依据、匹配度和命中文件来源；低置信度业务问题会走人工兜底，不把模糊命中包装成企业事实。
 - 人工兜底闭环：客户要求人工、资料未命中、特殊报价或投诉风险会标记人工跟进原因，并在有姓名或联系方式时沉淀线索。
 - 企业身份注入：AI Prompt 和 mock fallback 会读取企业设置，按企业业务范围与知识库回答。
+- 官网嵌入组件：`widget.js` 以 Shadow DOM 隔离宿主样式，iframe 加载 `/embed/chat`，复用公开咨询 API、企业知识库、人工兜底和线索沉淀。
 - 销售客服定位明确：支持问候、业务问题、销售相关、闲聊、无关和风险问题的边界控制。
 - 企业 SaaS 风格：后台包含仪表盘、表格、筛选、弹窗表单、加载态和错误提示。
 - 本地与 Docker 双启动：适合作品集展示、面试讲解和客户演示。
@@ -100,6 +102,8 @@ AI 与检索：
 ![客户线索](docs/screenshots/leads.png)
 
 ![模型设置](docs/screenshots/ai-settings.png)
+
+![嵌入式客服](docs/screenshots/embed-chat.png)
 
 ## 快速开始
 
@@ -395,6 +399,48 @@ handoff_reason: customer_requested_human | knowledge_not_found | special_quote |
 
 当前为单企业配置版本，不支持多租户隔离、企业注册、企业 Logo 文件上传、自定义域名或复杂主题编辑器。
 
+## 官网嵌入式 AI 客服组件
+
+v0.9.0 支持将 AI 客服嵌入企业已有官网。企业官网只需引入一个纯 JavaScript 脚本，页面右下角或左下角会出现悬浮咨询按钮；点击后打开 iframe 聊天窗口，iframe 内部加载 SalesPilot AI 的 `/embed/chat` 页面。
+
+嵌入示例：
+
+```html
+<script
+  src="https://your-domain.com/widget.js"
+  data-api-base="https://your-domain.com"
+  data-position="right"
+  data-allowed-domains="example.com,www.example.com"
+></script>
+```
+
+本地开发示例：
+
+```html
+<script
+  src="http://127.0.0.1:5176/widget.js"
+  data-api-base="http://127.0.0.1:5176"
+  data-position="right"
+  data-allowed-domains="127.0.0.1,localhost"
+></script>
+```
+
+组件规则：
+
+- `widget.js` 是原生 JavaScript，不要求宿主网站安装 React、Tailwind 或第三方依赖。
+- `data-api-base` 指向 SalesPilot AI 前端部署地址，脚本会拼接 `/embed/chat`。
+- `data-position` 支持 `right` 或 `left`。
+- `data-allowed-domains` 是基础允许嵌入域名白名单，按 hostname 匹配并忽略协议和端口。
+- 白名单留空时为 Demo 模式，允许展示 widget。
+- iframe 页面继续调用 `POST /api/public/chat` 和 `GET /api/company-settings/public`，不会复制一套聊天后端。
+- iframe 通过 `postMessage` 发送 `salespilot:close`；宿主脚本同时校验 `origin` 和当前 iframe 的 `source`，且只处理关闭消息。
+
+后台「企业设置」页面提供嵌入代码生成、复制、位置选择和 `/embed/chat` 预览入口。`docs/widget-demo.html` 可作为本地宿主页测试文件，启动前端后可在 `docs` 目录运行 `python3 -m http.server 9000` 进行验证。
+
+当前为单企业 Demo Widget，不支持多租户 Widget Key。允许嵌入域名白名单属于基础前端限制，不是生产级安全认证，不建议在未完成安全评估前用于高敏感业务。
+
+本地开发 CORS 保留默认前端端口 `5173`，并支持推荐的多项目并行端口 `5176`。允许来源为 `http://localhost:5173`、`http://127.0.0.1:5173`、`http://localhost:5176` 和 `http://127.0.0.1:5176`。该配置仅用于当前 Demo 的本地开发兼容，不代表生产级跨域安全方案。
+
 ## 多模型 API 配置
 
 后台「模型设置」页面支持配置多个模型 Provider：
@@ -450,6 +496,7 @@ http://host.docker.internal:11434/v1
 ```text
 /                 客户官网首页
 /public-chat      公开客户咨询页
+/embed/chat       嵌入式 iframe 聊天页
 ```
 
 后台页面：
@@ -532,6 +579,11 @@ http://host.docker.internal:11434/v1
 - `PUT /api/company-settings`
 - `GET /api/company-settings/public`
 
+嵌入式客服：
+
+- `GET /widget.js`
+- `/embed/chat` 复用 `POST /api/public/chat`
+
 `/api/chat` 和 `/api/public/chat` 会返回原有核心字段：
 
 ```text
@@ -568,6 +620,7 @@ handoff_reason
 7. 进入对话记录页面，查看完整咨询记录。
 8. 进入模型设置页面，展示多模型 API 配置能力。
 9. 进入后台 AI 对话测试页，查看当前模型、回复来源和问题范围。
+10. 进入企业设置页面，复制「官网嵌入客服」代码，或打开 `/embed/chat` 预览品牌化 iframe 聊天窗口。
 
 也可以在后台知识库新增一条资料，再回到公开咨询页测试知识库更新后的回复效果。
 
@@ -627,6 +680,7 @@ v0.4.5：系统时间生成与展示时区统一
 v0.6.0：企业文件知识库上传版，支持文件解析、切片和写入知识库
 v0.7.0：回答可信度、人工兜底与文件知识状态管理
 v0.8.0：单企业品牌配置与企业专属 AI 客服版
+v0.9.0：官网嵌入式 AI 客服组件
 ```
 
 ## 当前限制
@@ -634,6 +688,8 @@ v0.8.0：单企业品牌配置与企业专属 AI 客服版
 - 认证为演示版简化实现，固定账号和简单 token 仅适合本地演示。
 - 未实现 JWT、刷新 token、RBAC、多租户和细粒度权限控制。
 - 企业设置为单企业版本，不支持多租户隔离、企业注册或多企业管理员。
+- 嵌入式客服为单企业 Demo Widget，不支持多租户 Widget Key、访问统计或生产级域名签名校验。
+- 允许嵌入域名白名单是前端基础限制，不等同于完整安全认证。
 - Logo 使用 URL 配置，不包含企业 Logo 文件上传或媒体资源管理。
 - API Key 当前存储在 SQLite 中，未做生产级加密或密钥托管。
 - RAG 使用关键词检索，没有接入向量数据库、Embedding 和召回重排。
@@ -650,6 +706,7 @@ v0.8.0：单企业品牌配置与企业专属 AI 客服版
 - 文件知识库升级为批量上传、异步解析任务、OCR、对象存储和权限隔离。
 - RAG 升级为向量检索、Embedding、召回重排和引用来源展示。
 - 接入企业微信、飞书、微信公众号、网页客服等多渠道。
+- 将嵌入式客服升级为带 Widget Key、域名签名校验、访问统计和会话追踪的生产版本。
 - 增加线索跟进阶段、销售提醒、统计报表、导出和 CRM 对接。
 - 增加测试用例、Playwright E2E、CI 和自动截图。
 - 增加生产化 Docker Compose、HTTPS、反向代理、云数据库和备份策略。

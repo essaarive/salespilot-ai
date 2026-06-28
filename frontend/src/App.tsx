@@ -8,6 +8,7 @@ import Chat from "./pages/Chat";
 import CompanySettings from "./pages/CompanySettings";
 import Conversations from "./pages/Conversations";
 import Dashboard from "./pages/Dashboard";
+import EmbedChat from "./pages/EmbedChat";
 import Knowledge from "./pages/Knowledge";
 import Leads from "./pages/Leads";
 import Login from "./pages/Login";
@@ -23,6 +24,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<PublicHome />} />
       <Route path="/public-chat" element={<PublicChat />} />
+      <Route path="/embed/chat" element={<EmbedChat />} />
       <Route path="/login" element={<Login />} />
       <Route
         element={

@@ -1,3 +1,6 @@
+import re
+from urllib.parse import urlparse
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -19,7 +22,29 @@ DEFAULT_COMPANY_SETTINGS = {
     "business_hours": "周一至周五 09:00-18:00",
     "handoff_message": "您的问题已记录，我们建议由工作人员进一步确认并跟进。",
     "forbidden_topics": "",
+    "allowed_embed_domains": "",
+    "widget_position": "right",
 }
+
+
+def normalize_embed_domains(value: str) -> str:
+    domains: list[str] = []
+    seen = set()
+    for item in re.split(r"[\s,，;；]+", value or ""):
+        raw = item.strip()
+        if not raw:
+            continue
+        parsed = urlparse(raw if "://" in raw else f"//{raw}")
+        host = (parsed.hostname or raw.split("/")[0].split(":")[0]).strip().lower()
+        if not host or host in seen:
+            continue
+        seen.add(host)
+        domains.append(host)
+    return ",".join(domains)
+
+
+def normalize_widget_position(value: str) -> str:
+    return "left" if str(value or "").strip().lower() == "left" else "right"
 
 
 def get_or_create_company_settings(db: Session) -> CompanySettings:
