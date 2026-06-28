@@ -681,6 +681,7 @@ v0.9.0 支持单企业官网嵌入式 AI 客服组件，不做多租户 Widget K
   src="https://your-domain.com/widget.js"
   data-api-base="https://your-domain.com"
   data-position="right"
+  data-brand-color="#0F766E"
   data-allowed-domains="example.com,www.example.com"
 ></script>
 ```
@@ -692,6 +693,7 @@ v0.9.0 支持单企业官网嵌入式 AI 客服组件，不做多租户 Widget K
   src="http://127.0.0.1:5176/widget.js"
   data-api-base="http://127.0.0.1:5176"
   data-position="right"
+  data-brand-color="#0F766E"
   data-allowed-domains="127.0.0.1,localhost"
 ></script>
 ```
@@ -701,14 +703,24 @@ v0.9.0 支持单企业官网嵌入式 AI 客服组件，不做多租户 Widget K
 - `widget.js` 是原生 JavaScript，不依赖 React、Tailwind、jQuery 或第三方 CDN。
 - widget 使用 Shadow DOM 隔离宿主页面样式，避免污染企业官网。
 - 悬浮位置通过 `data-position=right|left` 控制。
+- 企业品牌色通过 `data-brand-color` 传入，仅接受 `#RGB` 或 `#RRGGBB`；非法值回退 `#2563EB`。
 - iframe URL 为 `{data-api-base}/embed/chat`。
 - iframe 聊天页复用 `GET /api/company-settings/public` 和 `POST /api/public/chat`。
 - `/embed/chat` 不显示官网导航、后台导航、内部文件名、模型配置或后台链接。
 - iframe 关闭协议为 `salespilot:close`，宿主脚本必须同时校验 message origin 和当前 iframe source，并忽略其他消息。
+- iframe 初始 title 为“在线咨询”；企业公开配置加载成功后，页面 title 更新为“企业简称 在线咨询”。
 - `allowed_embed_domains` 保存在 `company_settings`，后台用于生成嵌入代码。
 - `data-allowed-domains` 按 hostname 白名单判断，忽略协议和端口；留空为 Demo 模式。
 - `/api/company-settings/public` 不返回 `allowed_embed_domains`、`forbidden_topics` 或内部字段。
 - 白名单是前端基础限制，不是生产级安全认证；不要把当前 Demo 包装成安全隔离完整的生产 Widget。
+
+v0.9.1 线索轻量去重规则：
+
+- 仅处理 `intent_level=high` 或 `requires_handoff=true` 的自动沉淀线索。
+- 有有效联系方式时，按规范化电话、邮箱、微信或完整联系方式匹配最近 24 小时内的线索。
+- 命中后保留原始创建时间和跟进状态，更新最新需求、备注、意向等级、人工转接状态和更明确的跟进原因。
+- 没有有效联系方式时不做模糊去重，继续沿用原有创建逻辑。
+- 这是 Demo 级时间窗口规则，不等同于 CRM 主数据合并，也不保证并发请求下的强唯一性。
 
 本地宿主页测试文件：
 
@@ -822,6 +834,7 @@ v0.6.0：企业文件知识库上传版
 v0.7.0：回答可信度、人工兜底与文件知识状态管理
 v0.8.0：单企业品牌配置与企业专属 AI 客服版
 v0.9.0：官网嵌入式 AI 客服组件
+v0.9.1：Widget 品牌化完善与线索轻量去重
 ```
 
 ## 推荐演示流程

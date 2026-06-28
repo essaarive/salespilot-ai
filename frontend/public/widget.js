@@ -58,10 +58,16 @@
     return allowedDomains.indexOf(window.location.hostname.toLowerCase()) >= 0;
   }
 
+  function normalizeBrandColor(value) {
+    var color = String(value || "").trim();
+    return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(color) ? color : "#2563EB";
+  }
+
   try {
     var apiBase = normalizeBaseUrl(script && script.getAttribute("data-api-base"));
     var apiOrigin = new URL(apiBase).origin;
     var position = script && script.getAttribute("data-position") === "left" ? "left" : "right";
+    var brandColor = normalizeBrandColor(script && script.getAttribute("data-brand-color"));
     var allowedDomains = parseAllowedDomains(script && script.getAttribute("data-allowed-domains"));
 
     if (!isAllowedHost(allowedDomains)) {
@@ -77,13 +83,13 @@
     var style = document.createElement("style");
     style.textContent = [
       ":host{all:initial;font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;}",
-      "." + prefix + "button{position:fixed;z-index:2147483000;bottom:24px;" + position + ":24px;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:#2563eb;color:#fff;padding:13px 18px;box-shadow:0 14px 34px rgba(15,23,42,.24);font-size:14px;font-weight:700;line-height:1;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease;}",
-      "." + prefix + "button:hover{transform:translateY(-1px);box-shadow:0 18px 42px rgba(15,23,42,.30);}",
+      "." + prefix + "button{position:fixed;z-index:2147483000;bottom:24px;" + position + ":24px;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:" + brandColor + ";color:#fff;padding:13px 18px;box-shadow:0 14px 34px rgba(15,23,42,.24);font-size:14px;font-weight:700;line-height:1;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease,opacity .18s ease;}",
+      "." + prefix + "button:hover{transform:translateY(-1px);box-shadow:0 18px 42px rgba(15,23,42,.30);opacity:.92;}",
       "." + prefix + "button svg{width:18px;height:18px;display:block;}",
       "." + prefix + "panel{position:fixed;z-index:2147483001;bottom:86px;" + position + ":24px;width:380px;height:620px;max-height:calc(100vh - 112px);border:1px solid rgba(148,163,184,.35);border-radius:20px;background:#fff;box-shadow:0 24px 64px rgba(15,23,42,.28);overflow:hidden;display:none;}",
       "." + prefix + "panel." + prefix + "open{display:block;}",
-      "." + prefix + "close{position:absolute;right:14px;top:14px;z-index:2;width:34px;height:34px;border:1px solid rgba(226,232,240,.95);border-radius:999px;background:#fff;color:#64748b;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.08);transition:background .18s ease,color .18s ease;}",
-      "." + prefix + "close:hover{background:#f8fafc;color:#0f172a;}",
+      "." + prefix + "close{position:absolute;right:14px;top:14px;z-index:2;width:34px;height:34px;border:1px solid " + brandColor + ";border-radius:999px;background:#fff;color:" + brandColor + ";display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(15,23,42,.08);transition:background .18s ease,opacity .18s ease;}",
+      "." + prefix + "close:hover{background:#f8fafc;opacity:.82;}",
       "." + prefix + "close svg{width:16px;height:16px;}",
       "." + prefix + "iframe{width:100%;height:100%;border:0;display:block;background:#fff;}",
       "@media (max-width: 480px) {." + prefix + "button{bottom:16px;" + position + ":16px;padding:12px 15px;}." + prefix + "panel{bottom:76px;" + position + ":12px;width:calc(100vw - 24px);height:min(680px, calc(100vh - 92px));border-radius:18px;}}",
@@ -104,7 +110,7 @@
     closeButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
     var iframe = document.createElement("iframe");
     iframe.className = prefix + "iframe";
-    iframe.title = "SalesPilot AI 在线咨询";
+    iframe.title = "在线咨询";
     iframe.src = apiBase + "/embed/chat";
     iframe.setAttribute("allow", "clipboard-write");
     panel.appendChild(closeButton);

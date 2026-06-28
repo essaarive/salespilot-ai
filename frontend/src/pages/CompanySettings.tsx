@@ -78,12 +78,13 @@ export default function CompanySettingsPage() {
       `  src="${normalizedEmbedBaseUrl}/widget.js"`,
       `  data-api-base="${normalizedEmbedBaseUrl}"`,
       `  data-position="${form.widget_position}"`,
+      `  data-brand-color="${brandColor}"`,
     ];
     if (embedDomains) {
       attrs.push(`  data-allowed-domains="${embedDomains}"`);
     }
     return `<script\n${attrs.join("\n")}\n></script>`;
-  }, [embedDomains, form.widget_position, normalizedEmbedBaseUrl]);
+  }, [brandColor, embedDomains, form.widget_position, normalizedEmbedBaseUrl]);
 
   const modelLabel = useMemo(() => {
     if (!currentModel) return "暂无默认模型";

@@ -31,6 +31,7 @@ function fallbackInitial(name: string) {
 
 export default function EmbedChat() {
   const [company, setCompany] = useState<PublicCompanySettings>(defaultCompanySettings);
+  const [companyLoaded, setCompanyLoaded] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [question, setQuestion] = useState("");
   const [customerName, setCustomerName] = useState("");
@@ -43,9 +44,19 @@ export default function EmbedChat() {
 
   useEffect(() => {
     api.getPublicCompanySettings()
-      .then((settings) => setCompany({ ...defaultCompanySettings, ...settings }))
-      .catch(() => setCompany(defaultCompanySettings));
+      .then((settings) => {
+        setCompany({ ...defaultCompanySettings, ...settings });
+        setCompanyLoaded(true);
+      })
+      .catch(() => {
+        setCompany(defaultCompanySettings);
+        setCompanyLoaded(false);
+      });
   }, []);
+
+  useEffect(() => {
+    document.title = companyLoaded ? `${getCompanyDisplayName(company)} 在线咨询` : "在线咨询";
+  }, [company, companyLoaded]);
 
   useEffect(() => {
     setMessages([

@@ -5,11 +5,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.deps import get_db, verify_token
-from app.models import CompanySettings, Conversation, Lead
+from app.models import CompanySettings, Conversation
 from app.schemas import ChatRequest, ChatResponse
 from app.services.ai_service import generate_answer_with_meta
 from app.services.company_service import get_or_create_company_settings, public_contact_lines
 from app.services.intent_service import classify_scope, detect_intent
+from app.services.lead_service import create_or_update_chat_lead
 from app.services.rag_service import build_context, retrieve_knowledge_result
 
 router = APIRouter(prefix="/api/chat", tags=["chat"], dependencies=[Depends(verify_token)])
@@ -339,36 +340,32 @@ async def handle_chat(payload: ChatRequest, db: Session) -> ChatResponse:
         model = ai_result.model
         answer_basis = "knowledge"
 
-    conversation = Conversation(
-        customer_name=payload.customer_name,
-        customer_contact=payload.customer_contact,
-        question=payload.question,
-        answer=answer,
-        intent_type=intent.intent_type,
-        intent_level=intent.intent_level,
-        source="web",
-    )
-    db.add(conversation)
-
     should_create_lead = intent.intent_level == "high" or (
         requires_handoff and bool(payload.customer_name.strip() or payload.customer_contact.strip())
     )
 
-    if should_create_lead:
+    try:
         db.add(
-            Lead(
+            Conversation(
                 customer_name=payload.customer_name,
                 customer_contact=payload.customer_contact,
-                requirement=payload.question,
+                question=payload.question,
+                answer=answer,
+                intent_type=intent.intent_type,
                 intent_level=intent.intent_level,
-                status="new",
-                remark="AI 对话自动沉淀" if intent.intent_level == "high" else "人工跟进自动沉淀",
+                source="web",
+            )
+        )
+        if should_create_lead:
+            create_or_update_chat_lead(
+                db,
+                customer_name=payload.customer_name,
+                customer_contact=payload.customer_contact,
+                question=payload.question,
+                intent_level=intent.intent_level,
                 requires_handoff=requires_handoff,
                 handoff_reason=handoff_reason,
             )
-        )
-
-    try:
         db.commit()
     except SQLAlchemyError as exc:
         db.rollback()
